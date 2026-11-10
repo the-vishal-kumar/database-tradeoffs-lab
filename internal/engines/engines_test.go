@@ -5,14 +5,14 @@ import (
 	"testing"
 )
 
-// The trade-off the post relies on, at a small size: random writes cost a
+// The trade-off the post relies on, at a small size (20,000 keys, so it stays quick under -race): random writes cost a
 // B+tree far more disk writes than an LSM tree; reads go the other way.
 func TestTradeOff(t *testing.T) {
 	if _, err := os.Stat("/proc/self/io"); err != nil {
 		t.Skip("needs Linux /proc/self/io")
 	}
 	run := func(open func(string) (Engine, error)) Result {
-		r, err := Run(open, t.TempDir(), 50_000, 100, 500)
+		r, err := Run(open, t.TempDir(), 20_000, 100, 200)
 		if err != nil {
 			t.Fatal(err)
 		}

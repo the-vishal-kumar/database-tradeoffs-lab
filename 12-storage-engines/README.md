@@ -18,7 +18,7 @@ The same workload on three embedded engines, in one Go process, with no database
 
 Workload: insert 1,000,000 keys (16 bytes, random order) with 100-byte random values, in batches of 1,000 with one fsync each; overwrite every key once; then 100,000 point reads and 2,000 scans of 100 keys. "Written to disk" is the kernel's `write_bytes` counter for the process (`/proc/self/io`), so it counts everything each engine writes: pages, logs, flushes, compactions. Results: [results.md](results.md).
 
-[`internal/engines/engines_test.go`](../internal/engines/engines_test.go) checks the trade-off at 50,000 keys: the B+tree's write amplification is well above the LSM's, and its point reads are faster.
+[`internal/engines/engines_test.go`](../internal/engines/engines_test.go) checks the trade-off at 20,000 keys: the B+tree's write amplification is well above the LSM's, and its point reads are faster.
 
 ## Notes
 
