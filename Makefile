@@ -1,4 +1,4 @@
-.PHONY: up down isolation slowquery mongo cache locking dlock longtx replicas replicas-test partition twosys livemigrate test
+.PHONY: up down isolation slowquery mongo cache locking dlock longtx replicas replicas-test partition twosys livemigrate engines test
 up:            ## start the databases
 	docker compose up -d --wait postgres mongo redis
 down:          ## stop and remove everything
@@ -27,6 +27,8 @@ twosys: up     ## 10: orders and payments in two databases: dual write vs 2PC vs
 	docker compose run --rm go go run ./cmd/twosys
 livemigrate: up ## 11: schema changes on a 5M-row table under load: blocking vs online
 	docker compose run --rm go go run ./cmd/livemigrate
+engines:       ## 12: the same workload on a B+tree (bbolt) and an LSM tree (Pebble)
+	docker compose run --rm go go run ./cmd/engines
 replicas-test: ## the replica test (needs the replicas profile running)
 	docker compose --profile replicas up -d --wait pgprimary pgreplica
 	docker compose run --rm -e PRIMARY_URL=postgres://lab:lab@pgprimary:5432/lab?sslmode=disable -e REPLICA_URL=postgres://lab:lab@pgreplica:5432/lab?sslmode=disable go go test -count=1 ./internal/replicas/

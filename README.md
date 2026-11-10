@@ -20,6 +20,7 @@ make replicas    # 08: a streaming replica: lag, stale reads, synchronous commit
 make partition   # 09: one big table vs monthly partitions
 make twosys      # 10: two databases: dual write vs 2PC vs saga vs outbox
 make livemigrate # 11: schema changes under load: blocking vs online
+make engines     # 12: B+tree vs LSM tree, embedded (no server)
 make test        # tests that pin every result
 make down        # stop and delete the databases
 ```
@@ -43,6 +44,7 @@ With Go 1.27 installed: `make up`, then `go run ./cmd/isolation -details`. It co
 | 09 | [Partitioning](09-partitioning/) | One table vs monthly partitions (6M rows): partition pruning, queries without the key, and `DELETE` vs `DROP` for the oldest month (time, WAL, space returned) | done, [results](09-partitioning/results.md) |
 | 10 | [Two systems](10-two-systems/) | Orders and payments in two databases with crashes injected: dual write vs two-phase commit vs saga vs outbox, and what an in-doubt transaction blocks | done, [results](10-two-systems/results.md) |
 | 11 | [Live migrations](11-live-migrations/) | Schema changes on a 5M-row table under load: `ALTER … TYPE` vs expand/contract, `CREATE INDEX` vs `CONCURRENTLY`, constant vs volatile defaults, and the lock queue with and without `lock_timeout` | done, [results](11-live-migrations/results.md) |
+| 12 | [Storage engines](12-storage-engines/) | The same workload on a B+tree (bbolt) and an LSM tree (Pebble, with and without Bloom filters): write throughput, write amplification, point reads, range scans, space | done, [results](12-storage-engines/results.md) |
 
 ## Layout
 
@@ -71,6 +73,8 @@ cmd/twosys/, internal/twosys/  the two-systems demo and its test
 10-two-systems/           what it does, and measured results
 cmd/livemigrate/, internal/migrate/  the live-migration demo and its test
 11-live-migrations/       what it does, and measured results
+cmd/engines/, internal/engines/  the storage-engine comparison and its test
+12-storage-engines/       what it does, and measured results
 ```
 
 ## Licence
