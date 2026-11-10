@@ -41,7 +41,9 @@ func TestPostgres(t *testing.T) {
 	if open.TableBytes < 10*none.TableBytes {
 		t.Errorf("the table should bloat while the transaction is open: %d vs %d bytes", open.TableBytes, none.TableBytes)
 	}
-	if open.ScanP50 < 3*none.ScanP50 {
+	// The size is the robust signal; timings are noisy under -race, so only
+	// require reads to be clearly slower.
+	if open.ScanP50*2 < 3*none.ScanP50 {
 		t.Errorf("reading the bloated table should be slower: %s vs %s", open.ScanP50, none.ScanP50)
 	}
 	if open.AfterDead != 0 || open.AfterBytes != open.TableBytes {

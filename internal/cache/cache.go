@@ -366,6 +366,12 @@ func Stampede(ctx context.Context, e *Env, instances, perInstance int, queryTime
 					return Item{}, false, err
 				}
 				if got {
+					// Check again: another loader may have filled the cache
+					// and released the lock between our miss and our SET NX.
+					if it, ok, err := e.cached(ctx); err != nil || ok {
+						e.Redis.Del(ctx, key+":lock")
+						return it, false, err
+					}
 					it, err := loadAndSet(ctx)
 					e.Redis.Del(ctx, key+":lock")
 					return it, false, err
