@@ -23,8 +23,15 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U lab -d lab"
           --health-interval 2s --health-timeout 3s --health-retries 30
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s --health-timeout 3s --health-retries 30
     env:
       DATABASE_URL: postgres://lab:lab@localhost:5432/lab?sslmode=disable
+      REDIS_URL: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6

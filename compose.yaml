@@ -28,6 +28,17 @@ services:
       timeout: 5s
       retries: 30
 
+  # Redis for the cache demo: no persistence, so every run starts empty.
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["127.0.0.1:56379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
   # Runs the MongoDB demo without Node installed: `make mongo`.
   node:
     image: node:22
@@ -47,8 +58,10 @@ services:
     volumes: [".:/src", "gocache:/root/.cache/go-build", "gomod:/go/pkg/mod"]
     environment:
       DATABASE_URL: postgres://lab:lab@postgres:5432/lab?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
 
 volumes:
   gocache:
