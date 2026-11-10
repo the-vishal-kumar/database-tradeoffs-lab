@@ -41,13 +41,15 @@ type Step struct {
 const runs = 5
 
 // Measure runs EXPLAIN ANALYZE runs+1 times (the first warms the cache) and
-// keeps the median time and the last run's plan details.
+// keeps the median time and the last run's plan details. TIMING OFF: per-node
+// clock calls would add overhead proportional to the rows each node handles,
+// inflating row-heavy plans (OFFSET) against light ones (keyset).
 func Measure(ctx context.Context, c *pgx.Conn, sql string, args ...any) (Result, error) {
 	var times []float64
 	var last Result
 	for i := 0; i <= runs; i++ {
 		var raw []byte
-		if err := c.QueryRow(ctx, "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) "+sql, args...).Scan(&raw); err != nil {
+		if err := c.QueryRow(ctx, "EXPLAIN (ANALYZE, BUFFERS, TIMING OFF, FORMAT JSON) "+sql, args...).Scan(&raw); err != nil {
 			return Result{}, fmt.Errorf("%s: %w", firstLine(sql), err)
 		}
 		r, err := parse(raw)
@@ -263,9 +265,10 @@ func Run(ctx context.Context, c *pgx.Conn, n int) ([]Step, error) {
 		return nil, err
 	}
 
-	// 4. Stale statistics: 5% of rows, scattered across the table, get a
-	// status the planner has never seen. Until ANALYZE it thinks almost no
-	// rows match.
+	// 4. Stale statistics: 5% of rows (every 20th id) get a status the planner
+	// has never seen. Until ANALYZE it thinks almost no rows match. (status is
+	// indexed, so these are not HOT updates: the new row versions land on new
+	// pages at the end of the table.)
 	if err := exec(ctx, c, `UPDATE orders SET status = 'refunded' WHERE id % 20 = 3`); err != nil {
 		return nil, err
 	}

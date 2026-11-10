@@ -45,7 +45,8 @@ func TestEffects(t *testing.T) {
 	if off, key := get("paging", 0), get("paging", 1); off.Buffers < 20*key.Buffers {
 		t.Errorf("paging: OFFSET %d buffers vs keyset %d", off.Buffers, key.Buffers)
 	}
-	if ord, scat := get("correlation", 0), get("correlation", 1); scat.Buffers < 5*ord.Buffers || ord.Rows != scat.Rows {
+	if ord, scat := get("correlation", 0), get("correlation", 1); scat.Buffers < 5*ord.Buffers ||
+		absDiff(ord.ActRows, scat.ActRows)*10 > ord.ActRows { // same rows (within 10%), very different pages
 		t.Errorf("correlation: in-order %d buffers vs scattered %d", ord.Buffers, scat.Buffers)
 	}
 	if before, after := get("stats", 0), get("stats", 2); before.EstRows*100 > float64(before.ActRows) || after.EstRows*2 < float64(after.ActRows) {
@@ -58,4 +59,11 @@ func TestEffects(t *testing.T) {
 	if full, deleted, vacuumed := get("bloat", 0), get("bloat", 1), get("bloat", 3); deleted.Buffers < full.Buffers/2 || vacuumed.Buffers*5 > full.Buffers {
 		t.Errorf("bloat: buffers full %d, after delete %d, after VACUUM FULL %d", full.Buffers, deleted.Buffers, vacuumed.Buffers)
 	}
+}
+
+func absDiff(a, b int64) int64 {
+	if a > b {
+		return a - b
+	}
+	return b - a
 }

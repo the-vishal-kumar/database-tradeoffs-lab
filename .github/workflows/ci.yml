@@ -34,6 +34,6 @@ jobs:
         run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - name: Tests (pin the isolation matrix)
-        run: go test -race -count=1 ./...
+        run: go test -race -count=1 -p 1 ./...   # demos share one database
       - name: Print the matrix
         run: go run ./cmd/isolation >> "$GITHUB_STEP_SUMMARY"
