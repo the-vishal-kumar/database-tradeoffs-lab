@@ -104,6 +104,24 @@ services:
     command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
     ports: ["127.0.0.1:58000:8000"]
 
+  # Demo 15 (profile "dr"): a primary that archives every WAL segment, so it
+  # can be restored to any point in time after it's lost.
+  pgdr:
+    image: postgres:17-alpine
+    profiles: ["dr"]
+    command: ["postgres", "-c", "archive_mode=on", "-c", "archive_command=test ! -f /archive/%f && cp %p /archive/%f",
+              "-c", "archive_timeout=10s", "-c", "wal_level=replica"]
+    environment:
+      POSTGRES_USER: lab
+      POSTGRES_PASSWORD: lab   # local demo only
+      POSTGRES_DB: lab
+    volumes: ["pgdr-data:/var/lib/postgresql/data", "pgdr-archive:/archive", "pgdr-backup:/backup"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lab -d lab"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
   # Runs the MongoDB demo without Node installed: `make mongo`.
   node:
     image: node:22
@@ -132,5 +150,8 @@ services:
       redis: { condition: service_healthy }
 
 volumes:
+  pgdr-data:
+  pgdr-archive:
+  pgdr-backup:
   gocache:
   gomod:
