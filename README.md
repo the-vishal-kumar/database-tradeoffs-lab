@@ -22,6 +22,7 @@ make twosys      # 10: two databases: dual write vs 2PC vs saga vs outbox
 make livemigrate # 11: schema changes under load: blocking vs online
 make engines     # 12: B+tree vs LSM tree, embedded (no server)
 make acid        # 13: transfers in PostgreSQL, MongoDB and DynamoDB Local, with and without transactions
+make pgdyn       # 14: the same orders in PostgreSQL and DynamoDB: planned vs unplanned queries
 make test        # tests that pin every result
 make down        # stop and delete the databases
 ```
@@ -47,6 +48,7 @@ With Go 1.27 installed: `make up`, then `go run ./cmd/isolation -details`. It co
 | 11 | [Live migrations](11-live-migrations/) | Schema changes on a 5M-row table under load: `ALTER … TYPE` vs expand/contract, `CREATE INDEX` vs `CONCURRENTLY`, constant vs volatile defaults, and the lock queue with and without `lock_timeout` | done, [results](11-live-migrations/results.md) |
 | 12 | [Storage engines](12-storage-engines/) | The same workload on a B+tree (bbolt) and an LSM tree (Pebble, with and without Bloom filters): write throughput, write amplification, point reads, range scans, space | done, [results](12-storage-engines/results.md) |
 | 13 | [ACID](13-acid/) | Transfers between 100 accounts in PostgreSQL, MongoDB and DynamoDB Local, with and without transactions, with crashes: totals, negative balances, and what plain vs snapshot readers see | done, [results](13-acid/results.md) |
+| 14 | [Postgres or DynamoDB](14-postgres-or-dynamodb/) | The same 200K orders in PostgreSQL and a DynamoDB single-table design: the designed access pattern, an ad-hoc report (items read, capacity), and adding an access pattern later | done, [results](14-postgres-or-dynamodb/results.md) |
 
 ## Layout
 
@@ -79,6 +81,8 @@ cmd/engines/, internal/engines/  the storage-engine comparison and its test
 12-storage-engines/       what it does, and measured results
 cmd/acid/, internal/acid/  the ACID demo and its test (needs profile "acid")
 13-acid/                  what it does, and measured results
+cmd/pgdyn/, internal/pgdyn/  the Postgres-vs-DynamoDB demo and its test (needs DynamoDB Local)
+14-postgres-or-dynamodb/  what it does, and measured results
 ```
 
 ## Licence

@@ -1,4 +1,4 @@
-.PHONY: up down isolation slowquery mongo cache locking dlock longtx replicas replicas-test partition twosys livemigrate engines acid acid-test test
+.PHONY: up down isolation slowquery mongo cache locking dlock longtx replicas replicas-test partition twosys livemigrate engines acid acid-test pgdyn pgdyn-test test
 up:            ## start the databases
 	docker compose up -d --wait postgres mongo redis
 down:          ## stop and remove everything
@@ -35,6 +35,12 @@ acid:          ## 13: transfers in PostgreSQL, MongoDB and DynamoDB Local, with 
 acid-test:     ## the ACID test (needs the acid profile)
 	docker compose --profile acid up -d --wait postgres mongors dynamodb
 	docker compose run --rm go go test -count=1 ./internal/acid/
+pgdyn:         ## 14: the same orders in PostgreSQL and a DynamoDB single-table design
+	docker compose --profile acid up -d --wait postgres dynamodb
+	docker compose run --rm go go run ./cmd/pgdyn
+pgdyn-test:    ## the pgdyn test (needs DynamoDB Local)
+	docker compose --profile acid up -d --wait postgres dynamodb
+	docker compose run --rm go go test -count=1 ./internal/pgdyn/
 replicas-test: ## the replica test (needs the replicas profile running)
 	docker compose --profile replicas up -d --wait pgprimary pgreplica
 	docker compose run --rm -e PRIMARY_URL=postgres://lab:lab@pgprimary:5432/lab?sslmode=disable -e REPLICA_URL=postgres://lab:lab@pgreplica:5432/lab?sslmode=disable go go test -count=1 ./internal/replicas/
