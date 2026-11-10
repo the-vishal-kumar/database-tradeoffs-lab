@@ -1,0 +1,31 @@
+# One Postgres for every demo. Ports bind to localhost only.
+name: database-tradeoffs-lab
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: lab
+      POSTGRES_PASSWORD: lab   # local demo only
+      POSTGRES_DB: lab
+    ports: ["127.0.0.1:55432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lab -d lab"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Runs the demos without Go installed: `make isolation`.
+  go:
+    image: golang:1.27.3-bookworm
+    profiles: ["tools"]
+    working_dir: /src
+    volumes: [".:/src", "gocache:/root/.cache/go-build", "gomod:/go/pkg/mod"]
+    environment:
+      DATABASE_URL: postgres://lab:lab@postgres:5432/lab?sslmode=disable
+    depends_on:
+      postgres: { condition: service_healthy }
+
+volumes:
+  gocache:
+  gomod:
