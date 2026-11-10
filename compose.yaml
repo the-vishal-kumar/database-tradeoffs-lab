@@ -4,6 +4,7 @@ name: database-tradeoffs-lab
 services:
   postgres:
     image: postgres:17-alpine
+    command: ["postgres", "-c", "max_prepared_transactions=400"]   # demo 10: two-phase commit, with room for in-doubt ones
     environment:
       POSTGRES_USER: lab
       POSTGRES_PASSWORD: lab   # local demo only
