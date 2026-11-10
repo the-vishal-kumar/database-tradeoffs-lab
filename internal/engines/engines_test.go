@@ -1,3 +1,8 @@
+//go:build !race
+
+// Skipped under -race: Pebble is many times slower there, and this test is
+// single-threaded. CI runs it in a separate step without -race.
+
 package engines
 
 import (

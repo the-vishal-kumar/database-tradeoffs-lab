@@ -35,4 +35,5 @@ replicas-test: ## the replica test (needs the replicas profile running)
 test: up       ## run the tests that pin every result
 	docker compose up -d --wait mysql
 	docker compose run --rm go go test -race -count=1 -p 1 ./...
+	docker compose run --rm go go test -count=1 ./internal/engines/
 	docker compose run --rm node sh -c 'npm ci --no-audit --no-fund && node --test'
