@@ -14,6 +14,8 @@ make test        # tests that pin every result
 make down        # stop and delete the databases
 ```
 
+Without `make`: `docker compose up -d --wait postgres && docker compose run --rm go go run ./cmd/isolation -details`.
+
 With Go 1.27 installed: `make up`, then `go run ./cmd/isolation -details`. It connects to `localhost:55432` (bound to localhost only).
 
 ## Demos
