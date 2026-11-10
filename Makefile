@@ -1,4 +1,4 @@
-.PHONY: up down isolation slowquery mongo cache test
+.PHONY: up down isolation slowquery mongo cache locking test
 up:            ## start the databases
 	docker compose up -d --wait postgres mongo redis
 down:          ## stop and remove everything
@@ -11,6 +11,8 @@ mongo: up      ## 03: Mongoose vs $$jsonSchema vs one collection for everything
 	docker compose run --rm node sh -c 'npm ci --no-audit --no-fund && node demo.mjs'
 cache: up      ## 04: cache invalidation, races and stampedes (Redis + Postgres)
 	docker compose run --rm go go run ./cmd/cachedemo
+locking: up    ## 05: lock the row vs retry on conflict, at high and low contention
+	docker compose run --rm go go run ./cmd/lockdemo
 test: up       ## run the tests that pin every result
 	docker compose run --rm go go test -race -count=1 -p 1 ./...
 	docker compose run --rm node sh -c 'npm ci --no-audit --no-fund && node --test'
