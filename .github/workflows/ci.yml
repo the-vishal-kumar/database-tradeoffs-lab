@@ -29,9 +29,19 @@ jobs:
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 2s --health-timeout 3s --health-retries 30
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: lab
+          MYSQL_DATABASE: lab
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -plab"
+          --health-interval 2s --health-timeout 3s --health-retries 60
     env:
       DATABASE_URL: postgres://lab:lab@localhost:5432/lab?sslmode=disable
       REDIS_URL: redis://localhost:6379/0
+      MYSQL_DSN: root:lab@tcp(localhost:3306)/lab
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6

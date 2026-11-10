@@ -39,6 +39,19 @@ services:
       timeout: 3s
       retries: 30
 
+  # MySQL for the long-transaction demo (InnoDB's undo log vs PostgreSQL's VACUUM).
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: lab   # local demo only
+      MYSQL_DATABASE: lab
+    ports: ["127.0.0.1:53306:3306"]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-plab"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+
   # Runs the MongoDB demo without Node installed: `make mongo`.
   node:
     image: node:22
@@ -59,6 +72,7 @@ services:
     environment:
       DATABASE_URL: postgres://lab:lab@postgres:5432/lab?sslmode=disable
       REDIS_URL: redis://redis:6379/0
+      MYSQL_DSN: root:lab@tcp(mysql:3306)/lab
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

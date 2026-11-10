@@ -1,4 +1,4 @@
-.PHONY: up down isolation slowquery mongo cache locking dlock test
+.PHONY: up down isolation slowquery mongo cache locking dlock longtx test
 up:            ## start the databases
 	docker compose up -d --wait postgres mongo redis
 down:          ## stop and remove everything
@@ -15,6 +15,10 @@ locking: up    ## 05: lock the row vs retry on conflict, at high and low content
 	docker compose run --rm go go run ./cmd/lockdemo
 dlock: up      ## 06: why a Redis lock is not enough (leases, fencing, advisory locks)
 	docker compose run --rm go go run ./cmd/dlockdemo
+longtx: up     ## 07: one long transaction vs VACUUM (PostgreSQL) and purge (MySQL)
+	docker compose up -d --wait mysql
+	docker compose run --rm go go run ./cmd/longtx
 test: up       ## run the tests that pin every result
+	docker compose up -d --wait mysql
 	docker compose run --rm go go test -race -count=1 -p 1 ./...
 	docker compose run --rm node sh -c 'npm ci --no-audit --no-fund && node --test'
