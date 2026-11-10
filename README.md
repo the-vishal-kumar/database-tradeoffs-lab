@@ -26,7 +26,6 @@ With Go 1.27 installed: `make up`, then `go run ./cmd/isolation -details`. It co
 | 01 | [Isolation levels](01-isolation-levels/) | Read Uncommitted vs Read Committed vs Repeatable Read vs Serializable in PostgreSQL 17, across ten anomalies and fixes | done, [results](01-isolation-levels/results.md) |
 | 02 | [Slow queries at scale](02-slow-queries/) | Why a query that uses an index still slows down as the table grows: six causes, measured at 10K, 1M and 10M rows in PostgreSQL 17 | done, [results](02-slow-queries/results.md) |
 
-
 ## Layout
 
 ```
