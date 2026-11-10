@@ -1,4 +1,4 @@
-.PHONY: up down isolation slowquery mongo cache locking dlock longtx test
+.PHONY: up down isolation slowquery mongo cache locking dlock longtx replicas replicas-test test
 up:            ## start the databases
 	docker compose up -d --wait postgres mongo redis
 down:          ## stop and remove everything
@@ -18,6 +18,12 @@ dlock: up      ## 06: why a Redis lock is not enough (leases, fencing, advisory 
 longtx: up     ## 07: one long transaction vs VACUUM (PostgreSQL) and purge (MySQL)
 	docker compose up -d --wait mysql
 	docker compose run --rm go go run ./cmd/longtx
+replicas:      ## 08: a streaming replica: lag, stale reads, synchronous_commit, a missing sync replica
+	docker compose --profile replicas up -d --wait pgprimary pgreplica
+	docker compose run --rm -e PRIMARY_URL=postgres://lab:lab@pgprimary:5432/lab?sslmode=disable -e REPLICA_URL=postgres://lab:lab@pgreplica:5432/lab?sslmode=disable go go run ./cmd/replicas
+replicas-test: ## the replica test (needs the replicas profile running)
+	docker compose --profile replicas up -d --wait pgprimary pgreplica
+	docker compose run --rm -e PRIMARY_URL=postgres://lab:lab@pgprimary:5432/lab?sslmode=disable -e REPLICA_URL=postgres://lab:lab@pgreplica:5432/lab?sslmode=disable go go test -count=1 ./internal/replicas/
 test: up       ## run the tests that pin every result
 	docker compose up -d --wait mysql
 	docker compose run --rm go go test -race -count=1 -p 1 ./...
