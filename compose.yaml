@@ -85,6 +85,25 @@ services:
       timeout: 3s
       retries: 60
 
+  # Demo 13 (profile "acid"): MongoDB as a one-node replica set, because
+  # multi-document transactions need a replica set, and DynamoDB Local.
+  mongors:
+    image: mongo:8.2
+    profiles: ["acid"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports: ["127.0.0.1:57018:27017"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "try { rs.status().ok } catch (e) { rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'mongors:27017'}]}).ok }"]
+      interval: 2s
+      timeout: 10s
+      retries: 30
+
+  dynamodb:
+    image: amazon/dynamodb-local:3.3.2
+    profiles: ["acid"]
+    command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
+    ports: ["127.0.0.1:58000:8000"]
+
   # Runs the MongoDB demo without Node installed: `make mongo`.
   node:
     image: node:22
@@ -106,6 +125,8 @@ services:
       DATABASE_URL: postgres://lab:lab@postgres:5432/lab?sslmode=disable
       REDIS_URL: redis://redis:6379/0
       MYSQL_DSN: root:lab@tcp(mysql:3306)/lab
+      MONGO_RS_URL: mongodb://mongors:27017/?replicaSet=rs0
+      DYNAMODB_URL: http://dynamodb:8000
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

@@ -1,4 +1,4 @@
-.PHONY: up down isolation slowquery mongo cache locking dlock longtx replicas replicas-test partition twosys livemigrate engines test
+.PHONY: up down isolation slowquery mongo cache locking dlock longtx replicas replicas-test partition twosys livemigrate engines acid acid-test test
 up:            ## start the databases
 	docker compose up -d --wait postgres mongo redis
 down:          ## stop and remove everything
@@ -29,6 +29,12 @@ livemigrate: up ## 11: schema changes on a 5M-row table under load: blocking vs 
 	docker compose run --rm go go run ./cmd/livemigrate
 engines:       ## 12: the same workload on a B+tree (bbolt) and an LSM tree (Pebble)
 	docker compose run --rm go go run ./cmd/engines
+acid:          ## 13: transfers in PostgreSQL, MongoDB and DynamoDB Local, with and without transactions
+	docker compose --profile acid up -d --wait postgres mongors dynamodb
+	docker compose run --rm go go run ./cmd/acid
+acid-test:     ## the ACID test (needs the acid profile)
+	docker compose --profile acid up -d --wait postgres mongors dynamodb
+	docker compose run --rm go go test -count=1 ./internal/acid/
 replicas-test: ## the replica test (needs the replicas profile running)
 	docker compose --profile replicas up -d --wait pgprimary pgreplica
 	docker compose run --rm -e PRIMARY_URL=postgres://lab:lab@pgprimary:5432/lab?sslmode=disable -e REPLICA_URL=postgres://lab:lab@pgreplica:5432/lab?sslmode=disable go go test -count=1 ./internal/replicas/
