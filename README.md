@@ -17,6 +17,7 @@ make locking     # 05: lock the row vs retry on conflict
 make dlock       # 06: why a Redis lock is not enough
 make longtx      # 07: one long transaction vs VACUUM and purge (PostgreSQL, MySQL)
 make replicas    # 08: a streaming replica: lag, stale reads, synchronous commit
+make partition   # 09: one big table vs monthly partitions
 make test        # tests that pin every result
 make down        # stop and delete the databases
 ```
@@ -37,6 +38,7 @@ With Go 1.27 installed: `make up`, then `go run ./cmd/isolation -details`. It co
 | 06 | [Redis locks](06-redis-locks/) | A Redis lease lock vs fencing tokens vs PostgreSQL advisory locks vs claiming a row, when the lock holder pauses past its lease; plus a cron job on 3 instances | done, [results](06-redis-locks/results.md) |
 | 07 | [Long transactions](07-long-transactions/) | One idle transaction vs PostgreSQL's VACUUM and MySQL InnoDB's purge: dead rows, table bloat, slower reads, and the timeout that limits it | done, [results](07-long-transactions/results.md) |
 | 08 | [Read replicas](08-replicas/) | A PostgreSQL streaming replica: lag under load and after a big write, stale reads after your own write at each `synchronous_commit` level, and commits when the synchronous replica is gone | done, [results](08-replicas/results.md) |
+| 09 | [Partitioning](09-partitioning/) | One table vs monthly partitions (6M rows): partition pruning, queries without the key, and `DELETE` vs `DROP` for the oldest month (time, WAL, space returned) | done, [results](09-partitioning/results.md) |
 
 ## Layout
 
@@ -59,6 +61,8 @@ cmd/longtx/, internal/longtx/  the long-transaction demo (PostgreSQL and MySQL) 
 07-long-transactions/     what it does, and measured results
 cmd/replicas/, internal/replicas/  the replica demo and its test (needs profile "replicas")
 08-replicas/              replica setup scripts, what it does, and measured results
+cmd/partition/, internal/partition/  the partitioning demo and its test
+09-partitioning/          what it does, and measured results
 ```
 
 ## Licence

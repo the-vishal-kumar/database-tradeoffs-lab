@@ -1,4 +1,4 @@
-.PHONY: up down isolation slowquery mongo cache locking dlock longtx replicas replicas-test test
+.PHONY: up down isolation slowquery mongo cache locking dlock longtx replicas replicas-test partition test
 up:            ## start the databases
 	docker compose up -d --wait postgres mongo redis
 down:          ## stop and remove everything
@@ -21,6 +21,8 @@ longtx: up     ## 07: one long transaction vs VACUUM (PostgreSQL) and purge (MyS
 replicas:      ## 08: a streaming replica: lag, stale reads, synchronous_commit, a missing sync replica
 	docker compose --profile replicas up -d --wait pgprimary pgreplica
 	docker compose run --rm -e PRIMARY_URL=postgres://lab:lab@pgprimary:5432/lab?sslmode=disable -e REPLICA_URL=postgres://lab:lab@pgreplica:5432/lab?sslmode=disable go go run ./cmd/replicas
+partition: up  ## 09: one big table vs monthly partitions (6M rows)
+	docker compose run --rm go go run ./cmd/partition
 replicas-test: ## the replica test (needs the replicas profile running)
 	docker compose --profile replicas up -d --wait pgprimary pgreplica
 	docker compose run --rm -e PRIMARY_URL=postgres://lab:lab@pgprimary:5432/lab?sslmode=disable -e REPLICA_URL=postgres://lab:lab@pgreplica:5432/lab?sslmode=disable go go test -count=1 ./internal/replicas/
