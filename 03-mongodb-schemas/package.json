@@ -1,0 +1,16 @@
+{
+  "name": "mongodb-schemas-demo",
+  "private": true,
+  "type": "module",
+  "description": "Mongoose validation vs MongoDB $jsonSchema vs one collection for everything, measured",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "demo": "node demo.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "mongoose": "8.24.8"
+  }
+}

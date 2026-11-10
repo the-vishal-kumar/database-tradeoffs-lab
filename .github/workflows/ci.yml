@@ -37,3 +37,26 @@ jobs:
         run: go test -race -count=1 -p 1 ./...   # demos share one database
       - name: Print the matrix
         run: go run ./cmd/isolation >> "$GITHUB_STEP_SUMMARY"
+
+  mongo:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 03-mongodb-schemas
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      # Started by hand (not as a service) to pass ttlMonitorSleepSecs, which
+      # makes the TTL check take seconds instead of minutes.
+      - name: Start MongoDB 8.2
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:8.2 mongod --setParameter ttlMonitorSleepSecs=1
+          for _ in $(seq 1 30); do docker exec mongo mongosh --quiet --eval 'db.adminCommand("ping").ok' && exit 0; sleep 2; done
+          exit 1
+      - run: npm ci
+      - name: Tests (pin the MongoDB results)
+        run: node --test
+        env:
+          MONGO_URL: mongodb://localhost:27017

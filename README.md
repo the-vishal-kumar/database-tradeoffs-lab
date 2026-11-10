@@ -6,11 +6,12 @@ Runnable demos for a post series that compares database concepts side by side: i
 
 ## Run it
 
-You need Docker. Go is optional (the demos run in a Go container).
+You need Docker. Go and Node are optional (the demos run in containers).
 
 ```bash
 make isolation   # 01: isolation levels
 make slowquery   # 02: why queries slow down as the table grows (several minutes)
+make mongo       # 03: Mongoose vs $jsonSchema vs one collection for everything
 make test        # tests that pin every result
 make down        # stop and delete the databases
 ```
@@ -25,17 +26,19 @@ With Go 1.27 installed: `make up`, then `go run ./cmd/isolation -details`. It co
 |---|---|---|---|
 | 01 | [Isolation levels](01-isolation-levels/) | Read Uncommitted vs Read Committed vs Repeatable Read vs Serializable in PostgreSQL 17, across ten anomalies and fixes | done, [results](01-isolation-levels/results.md) |
 | 02 | [Slow queries at scale](02-slow-queries/) | Why a query that uses an index still slows down as the table grows: six causes, measured at 10K, 1M and 10M rows in PostgreSQL 17 | done, [results](02-slow-queries/results.md) |
+| 03 | [MongoDB schemas](03-mongodb-schemas/) | Mongoose validation vs MongoDB's `$jsonSchema` validator vs one collection for everything (TTL, indexes, the 16 MB limit), on MongoDB 8.2 | done, [results](03-mongodb-schemas/results.md) |
 
 ## Layout
 
 ```
-compose.yaml              Postgres 17 (+ a Go toolchain container, profile "tools")
+compose.yaml              Postgres 17 and MongoDB 8.2 (+ Go and Node containers, profile "tools")
 cmd/isolation/            prints the isolation matrix as Markdown
 internal/isolation/       the scenarios and the tests that pin them
 01-isolation-levels/      what each scenario does, and measured results
 cmd/slowquery/            measures the slow-query scenarios at several table sizes
 internal/slowquery/       the scenarios and a test that checks each effect at 200K rows
 02-slow-queries/          what each scenario does, and measured results
+03-mongodb-schemas/       the MongoDB demo (Node, Mongoose 8), its test and measured results
 ```
 
 ## Licence

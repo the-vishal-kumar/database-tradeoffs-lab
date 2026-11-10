@@ -1,4 +1,4 @@
-# One Postgres for every demo. Ports bind to localhost only.
+# The databases the demos run against. Ports bind to localhost only.
 name: database-tradeoffs-lab
 
 services:
@@ -14,6 +14,30 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+
+  # MongoDB 8.2 (8.0 refuses to start on Linux 6.19+ kernels: SERVER-121912).
+  # ttlMonitorSleepSecs=1 makes the TTL demo take seconds, not minutes; the
+  # production default is 60.
+  mongo:
+    image: mongo:8.2
+    command: ["mongod", "--setParameter", "ttlMonitorSleepSecs=1"]
+    ports: ["127.0.0.1:57017:27017"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  # Runs the MongoDB demo without Node installed: `make mongo`.
+  node:
+    image: node:22
+    profiles: ["tools"]
+    working_dir: /src/03-mongodb-schemas
+    volumes: [".:/src"]
+    environment:
+      MONGO_URL: mongodb://mongo:27017
+    depends_on:
+      mongo: { condition: service_healthy }
 
   # Runs the demos without Go installed: `make isolation`.
   go:
