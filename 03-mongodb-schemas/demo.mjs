@@ -81,6 +81,13 @@ async function validation(db) {
   );
   r.mongooseUpdateIncNegative = await code(() => Order.updateOne({ _id }, { $inc: { total: -1000 } }, { runValidators: true }));
   await raw.updateOne({ _id }, { $set: { total: 42 } });
+  // The global switch: every update runs validators...
+  mongoose.set('runValidators', true);
+  r.globalRunValidatorsSet = await code(() => Order.updateOne({ _id }, { $set: { status: 'bogus' } }));
+  // ...but $inc is still not one of the operators they cover.
+  r.globalRunValidatorsInc = await code(() => Order.updateOne({ _id }, { $inc: { total: -1000 } }));
+  mongoose.set('runValidators', false);
+  await raw.updateOne({ _id }, { $set: { total: 42, status: 'pending' } });
 
   // Now let MongoDB enforce it.
   await db.command({ collMod: 'orders', validator: { $jsonSchema: orderJsonSchema }, validationLevel: 'strict', validationAction: 'error' });

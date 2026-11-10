@@ -13,6 +13,8 @@ test('validation, TTL, indexes and the 16 MB limit behave as the post says', { s
   assert.equal(v.mongooseUpdateBadDefault, 'ok', 'update validators are off by default');
   assert.equal(v.mongooseUpdateBadRunValidators, 'ValidationError');
   assert.equal(v.mongooseUpdateIncNegative, 'ok', 'runValidators does not cover $inc');
+  assert.equal(v.globalRunValidatorsSet, 'ValidationError', "mongoose.set('runValidators', true) covers $set");
+  assert.equal(v.globalRunValidatorsInc, 'ok', '...but still not $inc');
 
   // ...while $jsonSchema is enforced by the server on every write (error 121).
   for (const k of ['dbDriverInsertBad', 'dbDriverUpdateBad', 'dbDriverIncNegative', 'strictUpdateOfOldInvalidDoc', 'moderateInsertBad']) {

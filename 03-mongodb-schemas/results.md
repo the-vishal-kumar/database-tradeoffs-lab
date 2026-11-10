@@ -13,6 +13,7 @@ The same invalid order (`customerId` not an ObjectId, `status: "bogus"`, `total:
 | Mongoose `updateOne({$set: {status: "bogus"}})`, default options | **accepted** (update validators are off by default) |
 | Same, with `{runValidators: true}` | rejected: `ValidationError` |
 | Mongoose `updateOne({$inc: {total: -1000}}, {runValidators: true})` | **accepted** (update validators don't cover `$inc`) |
+| With `mongoose.set('runValidators', true)`: `$set status "bogus"` / `$inc total -1000` | rejected: `ValidationError` / **accepted** |
 
 After adding a `$jsonSchema` validator (`collMod`, `validationLevel: "strict"`, `validationAction: "error"`):
 
