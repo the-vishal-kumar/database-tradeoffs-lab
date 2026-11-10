@@ -1,4 +1,4 @@
-.PHONY: up down isolation slowquery mongo cache locking dlock longtx replicas replicas-test partition twosys livemigrate engines acid acid-test pgdyn pgdyn-test dr test
+.PHONY: up down isolation slowquery mongo cache locking dlock longtx replicas replicas-test partition twosys livemigrate engines acid acid-test pgdyn pgdyn-test dr ids test
 up:            ## start the databases
 	docker compose up -d --wait postgres mongo redis
 down:          ## stop and remove everything
@@ -43,6 +43,8 @@ pgdyn-test:    ## the pgdyn test (needs DynamoDB Local)
 	docker compose run --rm go go test -count=1 ./internal/pgdyn/
 dr:            ## 15: backups and a disaster drill (logical dump vs base backup + WAL archive)
 	./15-backup-restore/run.sh
+ids:           ## 16: primary keys, bigint vs UUIDv4 vs UUIDv7 (insert time, WAL, index size)
+	./16-id-generation/run.sh
 replicas-test: ## the replica test (needs the replicas profile running)
 	docker compose --profile replicas up -d --wait pgprimary pgreplica
 	docker compose run --rm -e PRIMARY_URL=postgres://lab:lab@pgprimary:5432/lab?sslmode=disable -e REPLICA_URL=postgres://lab:lab@pgreplica:5432/lab?sslmode=disable go go test -count=1 ./internal/replicas/

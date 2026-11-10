@@ -51,6 +51,7 @@ With Go 1.27 installed: `make up`, then `go run ./cmd/isolation -details`. It co
 | 13 | [ACID](13-acid/) | Transfers between 100 accounts in PostgreSQL, MongoDB and DynamoDB Local, with and without transactions, with crashes: totals, negative balances, and what plain vs snapshot readers see | done, [results](13-acid/results.md) |
 | 14 | [Postgres or DynamoDB](14-postgres-or-dynamodb/) | The same 200K orders in PostgreSQL and a DynamoDB single-table design: the designed access pattern, an ad-hoc report (items read, capacity), and adding an access pattern later | done, [results](14-postgres-or-dynamodb/results.md) |
 | 15 | [Backup and restore](15-backup-restore/) | A 1 GB database: `pg_dump` and restore times, a base backup plus WAL archiving, then the server and its disk destroyed mid-write and rebuilt: data lost and time to recover | done, [results](15-backup-restore/results.md) |
+| 16 | [Primary keys](16-id-generation/) | 5M rows with bigint, random UUIDv4 and time-ordered UUIDv7 keys, index larger than the cache: insert time, WAL, index size and leaf density | done, [results](16-id-generation/results.md) |
 
 ## Layout
 
@@ -86,6 +87,7 @@ cmd/acid/, internal/acid/  the ACID demo and its test (needs profile "acid")
 cmd/pgdyn/, internal/pgdyn/  the Postgres-vs-DynamoDB demo and its test (needs DynamoDB Local)
 14-postgres-or-dynamodb/  what it does, and measured results
 15-backup-restore/        the disaster-drill script, what it does, and measured results
+16-id-generation/         the primary-key benchmark script and measured results
 ```
 
 ## Licence
