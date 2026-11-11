@@ -1,2 +1,5 @@
 .env
 *.test
+
+# macOS
+.DS_Store
