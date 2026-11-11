@@ -508,11 +508,16 @@ func Jitter(ctx context.Context, e *Env, keys int, ttl time.Duration, spread flo
 			}
 			return e.Redis.Set(ctx, name, "1", ttlFor()).Err()
 		}
-		// Warm every key at once, as after a deploy or a cache flush.
+		// Warm every key at once, as after a deploy or a cache flush: one
+		// pipeline, so the keys really are set within milliseconds of each
+		// other (one round trip per key would spread them over the warm-up
+		// itself, which on a busy machine blurs the effect being measured).
+		pipe := e.Redis.Pipeline()
 		for k := range keys {
-			if err := e.Redis.Set(ctx, fmt.Sprintf("jitter:%d", k), "1", ttlFor()).Err(); err != nil {
-				return nil, err
-			}
+			pipe.Set(ctx, fmt.Sprintf("jitter:%d", k), "1", ttlFor())
+		}
+		if _, err := pipe.Exec(ctx); err != nil {
+			return nil, err
 		}
 		var wg sync.WaitGroup
 		var firstErr atomic.Value

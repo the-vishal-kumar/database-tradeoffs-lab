@@ -83,12 +83,17 @@ func TestEffects(t *testing.T) {
 	})
 
 	t.Run("jitter", func(t *testing.T) {
-		r, err := Jitter(ctx, e, 500, 500*time.Millisecond, 0.3)
+		// Few keys and a 1 s TTL: readers find every expired key well inside
+		// one jitter window (±300 ms) even on a slow, loaded runner. With
+		// 500 keys and 500 ms, readers under -race on a busy machine took
+		// longer to reach every key than the jitter spread, and the test
+		// failed (93 vs 91).
+		r, err := Jitter(ctx, e, 100, time.Second, 0.3)
 		if err != nil {
 			t.Fatal(err)
 		}
-		// How synchronised the misses are depends on how fast readers cycle
-		// through the keys (slower under -race), so only require a clear cut.
+		// How synchronised the misses are still depends on how fast readers
+		// cycle through the keys, so only require a clear cut.
 		if float64(r[1].PeakPer100ms) > 0.7*float64(r[0].PeakPer100ms) {
 			t.Errorf("jitter should cut the peak by at least 30%%: same TTL %d, jittered %d", r[0].PeakPer100ms, r[1].PeakPer100ms)
 		}
