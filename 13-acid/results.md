@@ -4,7 +4,7 @@ Measured on 2026-11-10 with `make acid` on a laptop: PostgreSQL 17, MongoDB 8.2 
 
 An earlier run read all 100 accounts in one MongoDB batch and one DynamoDB page: with transactional writers, those plain reads saw 0 wrong totals out of 1,908 and 1,813, because a read that fits in one batch happened to see one moment. Neither store promises that across documents or items, and on any collection bigger than one batch the reader sees several moments, so the run below pages in batches of 10. DynamoDB Local is an emulator: it follows the API's transaction semantics, not real DynamoDB's latency or capacity.
 
-100 accounts × 1,000 = 100,000 in total. 8 workers make 1000 random transfers of 1–100 each; 2% of transfers crash half-way. A reader adds up all balances, over and over, while they run.
+100 accounts × 1,000 = 100,000 in total. 8 workers x 1,000 transfers (8,000 total), each of 1 to 100; 2% of transfers crash half-way. A reader adds up all balances, over and over, while they run.
 
 | Store | Transfers | Declined (no funds) | Crashed | Conflicts retried | Final total | Negative balances |
 |---|---:|---:|---:|---:|---:|---:|

@@ -76,7 +76,7 @@ type Scenario struct {
 	Run  func(ctx context.Context, e Env, iso pgx.TxIsoLevel) (Result, error)
 }
 
-// Scenarios, in the order the post discusses them.
+// Scenarios, in the order the demo README discusses them.
 var Scenarios = []Scenario{
 	{"dirty-read", "Dirty read", dirtyRead},
 	{"non-repeatable-read", "Non-repeatable read", nonRepeatableRead},

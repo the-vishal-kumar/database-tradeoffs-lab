@@ -50,7 +50,7 @@ func main() {
 		}
 		res = append(res, r)
 		for _, p := range r.Phases {
-			w, amp := "—", "—"
+			w, amp := "-", "-"
 			if p.LogicalBytes > 0 {
 				w, amp = mb(p.DiskWrittenBytes), fmt.Sprintf("%.1f×", p.WriteAmplification)
 			}

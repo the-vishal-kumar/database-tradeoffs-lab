@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Pins every outcome the post relies on.
+// Pins every outcome the demo README reports.
 func TestOutcomes(t *testing.T) {
 	dbURL, redisURL := os.Getenv("DATABASE_URL"), os.Getenv("REDIS_URL")
 	if dbURL == "" || redisURL == "" {

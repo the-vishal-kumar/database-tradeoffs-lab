@@ -42,7 +42,7 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		left := "—"
+		left := "-"
 		switch s {
 		case "two-phase commit":
 			left = fmt.Sprintf("%d prepared transactions", r.InDoubt)

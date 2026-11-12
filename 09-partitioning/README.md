@@ -1,6 +1,6 @@
-# 09 — One big table or partitions?
+# 09. One big table or partitions?
 
-Companion to the post *"Read replicas, partitioning or sharding: what does each one fix?"*
+**Question:** Read replicas, partitioning or sharding: what does each one fix?
 
 ```bash
 make partition

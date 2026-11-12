@@ -1,6 +1,6 @@
-# 07 — Why does one long-running transaction slow down the whole database?
+# 07. Why does one long-running transaction slow down the whole database?
 
-Companion to the post *"Why does one long-running transaction slow down the whole database?"*
+**Question:** Why does one long-running transaction slow down the whole database?
 
 ```bash
 make longtx

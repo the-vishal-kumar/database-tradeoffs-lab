@@ -2,7 +2,7 @@
 
 Measured on 2026-11-10 with `make replicas` on a laptop (Intel i7-8550U, 8 threads), primary and replica in Docker on the same machine, so the network adds almost nothing; across real networks every synchronous level costs at least one round trip more.
 
-Three runs of section 1 (stale reads out of 2,000): `local` 1,993 / 2,000 / 1,994; `remote_write` 1,966 / 1,999 / 1,847; `on` 14 / 9 / 227; `remote_apply` 0 / 0 / 0. Commit p50 rose from about 1.2–1.6 ms (`local`) to 2.4–2.7 ms (`remote_apply`). The run below is the third.
+Three runs of section 1 (stale reads out of 2,000): `local` 1,993 / 2,000 / 1,994; `remote_write` 1,966 / 1,999 / 1,847; `on` 14 / 9 / 227; `remote_apply` 0 / 0 / 0. Commit p50 rose from about 1.2 to 1.6 ms with `local` to about 2.4 to 2.7 ms with `remote_apply`. The run below is the third.
 
 PostgreSQL 17.11, one primary and one streaming replica, both in Docker on one machine (a network round trip well under a millisecond).
 
@@ -26,5 +26,5 @@ PostgreSQL 17.11, one primary and one streaming replica, both in Docker on one m
 `synchronous_standby_names` names a replica that isn't connected; commits use the default `synchronous_commit = on`.
 
 - With `statement_timeout = 3s`, an `UPDATE` waited **9008 ms**: statement_timeout did **not** end it; the client gave up.
-- With another session cancelling it after 3 s (as Ctrl-C would), it waited **3003 ms**. Error returned to the client: none: the client was told the commit succeeded. PostgreSQL's warning: "canceling wait for synchronous replication due to user request" — "The transaction has already committed locally, but might not have been replicated to the standby." The row was **changed** on the primary afterwards.
+- With another session cancelling it after 3 s (as Ctrl-C would), it waited **3003 ms**. Error returned to the client: none: the client was told the commit succeeded. PostgreSQL's warning: "canceling wait for synchronous replication due to user request" (detail: "The transaction has already committed locally, but might not have been replicated to the standby.") The row was **changed** on the primary afterwards.
 - The same update with `synchronous_commit = local` took 3.15 ms.

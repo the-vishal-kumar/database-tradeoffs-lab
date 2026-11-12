@@ -1,6 +1,6 @@
-# 12 — B-tree vs LSM tree
+# 12. B-tree vs LSM tree
 
-Companion to the post *"Why are some databases fast at writes and others at reads?"*
+**Question:** Why are some databases fast at writes and others at reads?
 
 ```bash
 make engines

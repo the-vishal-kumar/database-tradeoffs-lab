@@ -1,6 +1,6 @@
-# 06 — Why isn't a Redis lock enough?
+# 06. Why isn't a Redis lock enough?
 
-Companion to the post *"Why isn't a Redis lock enough?"*
+**Question:** Why isn't a Redis lock enough?
 
 ```bash
 make dlock

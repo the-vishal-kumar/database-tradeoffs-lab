@@ -46,7 +46,7 @@ Inserting 50,000 session documents. The shared collection has the indexes other 
 |---|---:|---:|---:|---:|
 | One collection, plain indexes | 6 | 712 ms | 1.79 MB | **50,000** (a null key per session) |
 | One collection, partial indexes (`$exists`) | 6 | 386 ms | 1.04 MB | 0 |
-| Separate `sessions` collection | 2 | 364 ms | 1.02 MB | — |
+| Separate `sessions` collection | 2 | 364 ms | 1.02 MB | - |
 
 (Index counts include `_id`.)
 

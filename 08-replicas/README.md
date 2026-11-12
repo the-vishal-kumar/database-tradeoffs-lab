@@ -1,6 +1,6 @@
-# 08 — Read replicas: lag, stale reads and synchronous commit
+# 08. Read replicas: lag, stale reads and synchronous commit
 
-Companion to the posts *"CAP or PACELC: what trade-off do you make when nothing is broken?"* and *"Read replicas, partitioning or sharding: what does each one fix?"*
+**Questions:** CAP or PACELC: what trade-off do you make when nothing is broken? Read replicas, partitioning or sharding: what does each one fix?
 
 ```bash
 make replicas

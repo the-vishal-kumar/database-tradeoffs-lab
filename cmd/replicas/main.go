@@ -87,7 +87,7 @@ func run() error {
 	}
 	fmt.Printf("\n### 3. The synchronous replica is gone\n\n`synchronous_standby_names` names a replica that isn't connected; commits use the default `synchronous_commit = on`.\n\n"+
 		"- With `statement_timeout = 3s`, an `UPDATE` waited **%s**: %s.\n"+
-		"- With another session cancelling it after 3 s (as Ctrl-C would), it waited **%s**. Error returned to the client: %s. PostgreSQL's warning: \"%s\" — \"%s\" The row was **%s** on the primary afterwards.\n"+
+		"- With another session cancelling it after 3 s (as Ctrl-C would), it waited **%s**. Error returned to the client: %s. PostgreSQL's warning: \"%s\" (detail: \"%s\") The row was **%s** on the primary afterwards.\n"+
 		"- The same update with `synchronous_commit = local` took %s.\n",
 		ms(o.TimeoutWaited), timeoutNote, ms(o.CancelWaited), cancelErr, o.Warning, o.Detail,
 		map[bool]string{true: "changed", false: "not changed"}[o.VisibleOnPrimary], ms(o.AsyncCommitLatency))

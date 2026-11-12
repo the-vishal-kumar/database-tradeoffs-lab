@@ -1,9 +1,9 @@
-// Pins every result the post quotes. Needs MONGO_URL (make test starts MongoDB).
+// Pins every result the README quotes. Needs MONGO_URL (make test starts MongoDB).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { run } from './demo.mjs';
 
-test('validation, TTL, indexes and the 16 MB limit behave as the post says', { skip: !process.env.MONGO_URL, timeout: 120_000 }, async () => {
+test('validation, TTL, indexes and the 16 MB limit behave as the README says', { skip: !process.env.MONGO_URL, timeout: 120_000 }, async () => {
   const r = await run(process.env.MONGO_URL, 5_000);
   const v = r.validation;
 

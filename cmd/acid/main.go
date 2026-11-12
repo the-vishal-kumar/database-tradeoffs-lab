@@ -54,7 +54,7 @@ func run() error {
 		Credentials:  credentials.NewStaticCredentialsProvider("local", "local", ""), // DynamoDB Local ignores them
 	})
 	const workers, per, crash = 8, 1000, 0.02
-	fmt.Printf("100 accounts × 1,000 = 100,000 in total. %d workers make %d random transfers of 1–100 each; %.0f%% of transfers crash half-way. A reader adds up all balances, over and over, while they run.\n\n", workers, per, crash*100)
+	fmt.Printf("100 accounts × 1,000 = 100,000 in total. %d workers x %s transfers (%s total), each of 1 to 100; %.0f%% of transfers crash half-way. A reader adds up all balances, over and over, while they run.\n\n", workers, commas(per), commas(workers*per), crash*100)
 	fmt.Println("| Store | Transfers | Declined (no funds) | Crashed | Conflicts retried | Final total | Negative balances |")
 	fmt.Println("|---|---:|---:|---:|---:|---:|---:|")
 	stores := []acid.Store{
@@ -99,4 +99,13 @@ func run() error {
 		}
 	}
 	return nil
+}
+
+// commas formats n with thousands separators, e.g. 8000 -> "8,000".
+func commas(n int) string {
+	s := fmt.Sprint(n)
+	for i := len(s) - 3; i > 0; i -= 3 {
+		s = s[:i] + "," + s[i:]
+	}
+	return s
 }
