@@ -1,6 +1,6 @@
-# 02 — Slow queries at scale: why a query that uses an index still slows down
+# 02. Slow queries at scale: why a query that uses an index still slows down
 
-Companion to the post *"Why does my Postgres query get slower as the table grows, even with an index?"*
+**Question:** Why does my Postgres query get slower as the table grows, even with an index?
 
 ```bash
 make slowquery          # 10K, 1M and 10M rows; several minutes, ~1.5 GB of disk
@@ -16,7 +16,7 @@ It builds the same `orders` table at each size and runs six scenarios with `EXPL
 `orders(id, tenant_id, customer_id, status, created_at, total_cents, note)`, generated deterministically:
 
 - `created_at` rises with `id`, so it follows the physical order of rows on disk.
-- `customer_id` is spread pseudo-randomly over 0–999,999, so it doesn't.
+- `customer_id` is spread pseudo-randomly over 0 to 999,999, so it doesn't.
 - Tenant 7 is a small, *old* tenant: every 10th row of the first 1% of the table.
 - Status is 80% `shipped`, 15% `paid`, 5% `cancelled`.
 - Indexes on `created_at`, `customer_id` and `status`. A `customers` table (1M rows, 10% in `NL`) for the join.

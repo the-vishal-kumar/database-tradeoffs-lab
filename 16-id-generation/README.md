@@ -1,4 +1,4 @@
-# 16 · Primary keys: bigint vs UUIDv4 vs UUIDv7
+# 16. Primary keys: bigint vs UUIDv4 vs UUIDv7
 
 **Question:** does the kind of primary key change insert speed and index size?
 

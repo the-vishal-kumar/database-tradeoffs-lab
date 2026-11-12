@@ -1,6 +1,6 @@
-# 04 — Cache consistency and stampedes: Redis in front of PostgreSQL
+# 04. Cache consistency and stampedes: Redis in front of PostgreSQL
 
-Companion to the post *"Why did adding a cache make our data wrong?"*
+**Question:** Why did adding a cache make our data wrong?
 
 ```bash
 make cache

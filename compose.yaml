@@ -1,7 +1,7 @@
 # The databases the demos run against. Ports bind to localhost only.
 #
 # Images are pinned to the exact versions the results were measured on
-# (results.md files name them); Dependabot proposes bumps.
+# (results.md files name them).
 #
 # Memory limits: every helper and non-PostgreSQL service has one. The
 # PostgreSQL services don't, on purpose: how much of a table fits in memory

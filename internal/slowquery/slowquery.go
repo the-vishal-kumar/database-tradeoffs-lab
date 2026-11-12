@@ -367,7 +367,7 @@ func Report(sizes []int, bySize map[int][]Step) string {
 		for _, v := range variants {
 			fmt.Fprintf(&b, "| %s |", v)
 			for _, n := range sizes {
-				cell := "—"
+				cell := "-"
 				for _, st := range bySize[n] {
 					if st.Scenario == sc.Key && variantKey(st) == v {
 						cell = cellText(sc.Key, st)

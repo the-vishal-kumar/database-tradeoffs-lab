@@ -1,6 +1,6 @@
-# 15 — Backups and a disaster drill
+# 15. Backups and a disaster drill
 
-Companion to the post *"What's the cheapest disaster recovery that actually works?"*
+**Question:** What's the cheapest disaster recovery that actually works?
 
 ```bash
 make dr          # or: ./15-backup-restore/run.sh   (about 5 minutes; only Docker and python3)

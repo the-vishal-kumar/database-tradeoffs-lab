@@ -63,7 +63,7 @@ func main() {
 			os.Exit(1)
 		}
 		for _, r := range rs {
-			items, rcu := "—", "—"
+			items, rcu := "-", "-"
 			if r.Store == "DynamoDB" {
 				items, rcu = fmt.Sprint(r.ItemsRead), fmt.Sprintf("%.1f RCU", r.CapacityUnits)
 			}

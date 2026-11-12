@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// The effects the post relies on, checked at a size small enough for CI.
+// The effects the demo README reports, checked at a size small enough for CI.
 // Buffers, not times, so the test doesn't depend on the machine.
 func TestEffects(t *testing.T) {
 	url := os.Getenv("DATABASE_URL")

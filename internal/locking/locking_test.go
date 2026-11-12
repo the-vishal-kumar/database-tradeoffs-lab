@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// Pins every outcome the post relies on, at sizes small enough for CI.
+// Pins every outcome the demo README reports, at sizes small enough for CI.
 func TestOutcomes(t *testing.T) {
 	url := os.Getenv("DATABASE_URL")
 	if url == "" {

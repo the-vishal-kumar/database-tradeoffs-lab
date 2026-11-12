@@ -1,6 +1,6 @@
-# 01 — Isolation levels: Read Committed vs Repeatable Read vs Serializable
+# 01. Isolation levels: Read Committed vs Repeatable Read vs Serializable
 
-Companion to the post *"Read Committed vs Repeatable Read vs Serializable: what each one actually lets through"*.
+**Question:** what does each of Read Committed, Repeatable Read and Serializable actually let through?
 
 ```bash
 make isolation

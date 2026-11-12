@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// The trade-off the post relies on, at a small size (20,000 keys, so it stays quick under -race): random writes cost a
+// The trade-off the demo README reports, at a small size (20,000 keys, so it stays quick under -race): random writes cost a
 // B+tree far more disk writes than an LSM tree; reads go the other way.
 func TestTradeOff(t *testing.T) {
 	if _, err := os.Stat("/proc/self/io"); err != nil {

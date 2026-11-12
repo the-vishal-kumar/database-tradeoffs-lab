@@ -8,10 +8,10 @@ PostgreSQL, orders in database `lab` and payments in database `payments`. 1000 o
 
 | Strategy | Crashes | Inconsistent before recovery (outbox: before the relay runs) | Left in doubt / pending | Charges redelivered | Inconsistent after recovery | Took |
 |---|---:|---:|---|---:|---:|---:|
-| dual write | 47 | 47 | — | 0 | 47 | 1.6 s |
+| dual write | 47 | 47 | - | 0 | 47 | 1.6 s |
 | two-phase commit | 139 | 0 | 223 prepared transactions | 0 | 0 | 4.8 s |
 | saga | 96 | 47 | 96 orders stuck pending (all 1000 were visible as pending for a while) | 0 | 0 | 2.5 s |
-| outbox | 51 | 1000 | — | 48 | 0 | 2.7 s |
+| outbox | 51 | 1000 | - | 48 | 0 | 2.7 s |
 
 ### An in-doubt transaction holds its locks
 

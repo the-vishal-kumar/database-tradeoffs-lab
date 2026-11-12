@@ -92,7 +92,7 @@ func run(d time.Duration) error {
 	fmt.Println("| Variant | Updates | History list length | Point read p50: new session / old transaction | Read all 100 rows p50: new session / old transaction |")
 	fmt.Println("|---|---:|---:|---|---|")
 	for _, r := range mr {
-		old, oldScan := "—", "—"
+		old, oldScan := "-", "-"
 		if r.ReadOldP50 > 0 {
 			old, oldScan = ms(r.ReadOldP50), ms(r.ScanOldP50)
 		}

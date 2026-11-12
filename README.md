@@ -1,8 +1,8 @@
 # database-tradeoffs-lab
 
-[![ci](https://github.com/the-vishal-kumar/database-tradeoffs-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/the-vishal-kumar/database-tradeoffs-lab/actions/workflows/ci.yml)
+[![ci](https://github.com/the-vishal-kumar/database-tradeoffs-lab/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/the-vishal-kumar/database-tradeoffs-lab/actions/workflows/ci.yml)
 
-Runnable demos for a post series that compares database concepts side by side: isolation levels, locking strategies, consistency models, storage engines and more. Every claim in a post comes with a demo here that shows the difference happening, and a test that pins the result.
+Runnable demos that compare database concepts side by side: isolation levels, locking strategies, consistency models, storage engines and more. Each demo shows the difference happening and commits what it measured; demos 01 to 14 also have a test that pins the result.
 
 ## Run it
 
@@ -24,7 +24,9 @@ make engines     # 12: B+tree vs LSM tree, embedded (no server)
 make acid        # 13: transfers in PostgreSQL, MongoDB and DynamoDB Local, with and without transactions
 make pgdyn       # 14: the same orders in PostgreSQL and DynamoDB: planned vs unplanned queries
 make dr          # 15: backups and a disaster drill: dump vs point-in-time recovery
-make test        # tests that pin every result
+make ids         # 16: primary keys: bigint vs UUIDv4 vs UUIDv7
+make test        # the tests CI runs: every demo test except 08, 13 and 14
+make test-all    # every test, including 08, 13 and 14 (starts extra containers)
 make down        # stop and delete the databases
 ```
 
@@ -51,7 +53,7 @@ With Go 1.27 installed: `make up`, then `go run ./cmd/isolation -details`. It co
 | 13 | [ACID](13-acid/) | Transfers between 100 accounts in PostgreSQL, MongoDB and DynamoDB Local, with and without transactions, with crashes: totals, negative balances, and what plain vs snapshot readers see | done, [results](13-acid/results.md) |
 | 14 | [Postgres or DynamoDB](14-postgres-or-dynamodb/) | The same 200K orders in PostgreSQL and a DynamoDB single-table design: the designed access pattern, an ad-hoc report (items read, capacity), and adding an access pattern later | done, [results](14-postgres-or-dynamodb/results.md) |
 | 15 | [Backup and restore](15-backup-restore/) | A 1 GB database: `pg_dump` and restore times, a base backup plus WAL archiving, then the server and its disk destroyed mid-write and rebuilt: data lost and time to recover | done, [results](15-backup-restore/results.md) |
-| 16 | [Primary keys](16-id-generation/) | 5M rows with bigint, random UUIDv4 and time-ordered UUIDv7 keys, index larger than the cache: insert time, WAL, index size and leaf density | done, [results](16-id-generation/results.md) |
+| 16 | [Primary keys](16-id-generation/) | 5M rows with bigint, random UUIDv4 and time-ordered UUIDv7 keys, index larger than the cache: insert time, WAL, index size and leaf density (`make ids`) | done, [results](16-id-generation/results.md) |
 
 ## Layout
 

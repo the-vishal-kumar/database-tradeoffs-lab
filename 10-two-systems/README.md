@@ -1,6 +1,6 @@
-# 10 — Keeping two systems consistent without a distributed transaction
+# 10. Keeping two systems consistent without a distributed transaction
 
-Companion to the post *"How do you keep two systems consistent without distributed transactions?"*
+**Question:** How do you keep two systems consistent without distributed transactions?
 
 ```bash
 make twosys

@@ -1,6 +1,6 @@
-# 14 — Postgres or DynamoDB for a new SaaS?
+# 14. Postgres or DynamoDB for a new SaaS?
 
-Companion to the post *"Postgres or DynamoDB for a new SaaS?"*
+**Question:** Postgres or DynamoDB for a new SaaS?
 
 ```bash
 make pgdyn

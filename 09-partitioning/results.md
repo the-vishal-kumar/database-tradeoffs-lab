@@ -8,11 +8,11 @@ PostgreSQL 17.11. 6000000 rows over 2026 (500000 a month), 1,000 tenants, 100-by
 
 | Query | Layout | p50 | Partitions in the plan |
 |---|---|---:|---:|
-| last 2 days (`created_at >= '2026-12-30'`) | one table | 2.85 ms | — |
+| last 2 days (`created_at >= '2026-12-30'`) | one table | 2.85 ms | - |
 | last 2 days (`created_at >= '2026-12-30'`) | partitioned by month (12 partitions) | 3.18 ms | 1 |
-| one tenant, last 2 days | one table | 0.10 ms | — |
+| one tenant, last 2 days | one table | 0.10 ms | - |
 | one tenant, last 2 days | partitioned by month (12 partitions) | 0.08 ms | 1 |
-| one tenant, all year (no partition key) | one table | 0.65 ms | — |
+| one tenant, all year (no partition key) | one table | 0.65 ms | - |
 | one tenant, all year (no partition key) | partitioned by month (12 partitions) | 1.05 ms | 12 |
 
 ### Removing the oldest month

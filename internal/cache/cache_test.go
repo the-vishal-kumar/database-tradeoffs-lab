@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// Pins every effect the post relies on, at sizes small enough for CI.
+// Pins every effect the demo README reports, at sizes small enough for CI.
 func TestEffects(t *testing.T) {
 	dbURL, redisURL := os.Getenv("DATABASE_URL"), os.Getenv("REDIS_URL")
 	if dbURL == "" || redisURL == "" {

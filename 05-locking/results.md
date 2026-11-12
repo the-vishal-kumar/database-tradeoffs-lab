@@ -46,4 +46,4 @@ PostgreSQL 17.11. 32 buyers × 25 purchases, 2 ms of application work between re
 | atomic `UPDATE` | 0 | 0 | 0 | 1910 / 1881 / 1894 | 59 / 56 / 56 ms |
 | Serializable + retry | 0 | 5,305 / 5,406 / 5,453 | 20 / 28 / 28 | 292 / 300 / 299 | 1.0 / 1.0 / 1.0 s |
 
-Low contention was stable across runs: every strategy except Serializable stayed between 7,300 and 9,300 purchases/s with a p99 under 8 ms; Serializable had 479–484 retries and 3,400–4,200 purchases/s.
+Low contention was stable across runs: every strategy except Serializable stayed between 7,300 and 9,300 purchases/s with a p99 under 8 ms; Serializable had 479 to 484 retries and 3,400 to 4,200 purchases/s.

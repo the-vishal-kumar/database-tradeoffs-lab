@@ -4,7 +4,7 @@
 //   MONGO_URL=mongodb://localhost:57017 node demo.mjs
 //
 // Every scenario returns what actually happened (an error code, a count, a
-// size), so the post and the tests quote the same numbers.
+// size), so results.md and the tests quote the same numbers.
 
 import mongoose from 'mongoose';
 import { setTimeout as sleep } from 'node:timers/promises';

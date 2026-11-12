@@ -64,7 +64,7 @@ func run(ctx context.Context, db *pgxpool.Pool, perMonth int) error {
 	}
 	fmt.Println("### Queries (median of 50 runs)\n\n| Query | Layout | p50 | Partitions in the plan |\n|---|---|---:|---:|")
 	for _, q := range qs {
-		p := "—"
+		p := "-"
 		if q.Partitions > 0 {
 			p = fmt.Sprint(q.Partitions)
 		}

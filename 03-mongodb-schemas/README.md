@@ -1,6 +1,6 @@
-# 03 — MongoDB schemas: Mongoose vs `$jsonSchema` vs one collection for everything
+# 03. MongoDB schemas: Mongoose vs `$jsonSchema` vs one collection for everything
 
-Companion to the post *"If MongoDB is schemaless, why do we write Mongoose schemas? Why not one collection for everything?"*
+**Question:** If MongoDB is schemaless, why do we write Mongoose schemas? Why not one collection for everything?
 
 ```bash
 make mongo
@@ -24,4 +24,4 @@ Runs against MongoDB 8.2 with Mongoose 8, and prints what each write actually di
 
 - MongoDB 8.0 refuses to start on Linux kernels 6.19 and newer ([SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912)); 8.2 starts. The demo pins `mongo:8.2`.
 - `ttlMonitorSleepSecs=1` (set in `compose.yaml`) makes the TTL monitor run every second instead of every 60, so scenario 2 takes seconds. Don't set it in production.
-- Not measured here: shard keys (a collection has one, so one shared collection forces one key on every type) and access control (MongoDB grants privileges per collection, not per document type). The post explains both without a demo.
+- Not measured here: shard keys (a collection has one, so one shared collection forces one key on every type) and access control (MongoDB grants privileges per collection, not per document type).

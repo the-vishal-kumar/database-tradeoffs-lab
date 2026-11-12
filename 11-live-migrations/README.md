@@ -1,6 +1,6 @@
-# 11 — Changing a schema without stopping traffic
+# 11. Changing a schema without stopping traffic
 
-Companion to the post *"How do you migrate a live database without downtime?"*
+**Question:** How do you migrate a live database without downtime?
 
 ```bash
 make livemigrate
