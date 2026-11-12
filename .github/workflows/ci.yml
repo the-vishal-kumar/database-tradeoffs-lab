@@ -4,17 +4,43 @@ on:
     branches: [main]
   pull_request:
   schedule:
-    - cron: "0 6 * * 1"   # weekly: catch Postgres behaviour changes in new 17.x images
+    - cron: "0 6 * * 1"   # weekly: catch drift in the runner, Go toolchain and Actions
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - run: go vet ./...
+      - name: staticcheck
+        run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 ./...
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+      - name: shellcheck
+        run: shellcheck 15-backup-restore/run.sh 16-id-generation/run.sh 08-replicas/replica-entrypoint.sh 08-replicas/initdb/10-replication.sh
+      - name: compose file is valid
+        run: docker compose config -q
+
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Same images and versions as compose.yaml.
     services:
       postgres:
-        image: postgres:17-alpine
+        image: postgres:17.11-alpine
         env:
           POSTGRES_USER: lab
           POSTGRES_PASSWORD: lab
@@ -24,13 +50,13 @@ jobs:
           --health-cmd "pg_isready -U lab -d lab"
           --health-interval 2s --health-timeout 3s --health-retries 30
       redis:
-        image: redis:7.4-alpine
+        image: redis:7.4.12-alpine
         ports: ["6379:6379"]
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 2s --health-timeout 3s --health-retries 30
       mysql:
-        image: mysql:8.4
+        image: mysql:8.4.13
         env:
           MYSQL_ROOT_PASSWORD: lab
           MYSQL_DATABASE: lab
@@ -43,35 +69,51 @@ jobs:
       REDIS_URL: redis://localhost:6379/0
       MYSQL_DSN: root:lab@tcp(localhost:3306)/lab
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: go.mod
-      - name: Format
-        run: test -z "$(gofmt -l .)"
-      - run: go vet ./...
-      - name: Tests (pin the isolation matrix)
+      - name: Tests, with the race detector
         run: go test -race -count=1 -p 1 ./...   # demos share one database
       - name: Storage-engine test (without -race; Pebble is very slow under it)
         run: go test -count=1 ./internal/engines/
-      - name: Print the matrix
+      - name: Print the isolation matrix
         run: go run ./cmd/isolation >> "$GITHUB_STEP_SUMMARY"
+
+  # Demos 08, 13 and 14 need a replica, a MongoDB replica set and DynamoDB
+  # Local. This job runs their tests through the same make targets and
+  # compose file a reader uses.
+  profiles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - name: Replica test (demo 08)
+        run: make replicas-test
+      - name: ACID test (demo 13)
+        run: make acid-test
+      - name: PostgreSQL vs DynamoDB test (demo 14)
+        run: make pgdyn-test
+      - name: Tear down
+        if: always()
+        run: make down
 
   mongo:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: 03-mongodb-schemas
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          node-version: 22
+          node-version: 22.23.4
       # Started by hand (not as a service) to pass ttlMonitorSleepSecs, which
       # makes the TTL check take seconds instead of minutes.
-      - name: Start MongoDB 8.2
+      - name: Start MongoDB 8.2.12
         run: |
-          docker run -d --name mongo -p 27017:27017 mongo:8.2 mongod --setParameter ttlMonitorSleepSecs=1
+          docker run -d --name mongo -p 27017:27017 mongo:8.2.12 mongod --setParameter ttlMonitorSleepSecs=1
           for _ in $(seq 1 30); do docker exec mongo mongosh --quiet --eval 'db.adminCommand("ping").ok' && exit 0; sleep 2; done
           exit 1
       - run: npm ci

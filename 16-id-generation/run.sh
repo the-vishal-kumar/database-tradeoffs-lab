@@ -4,7 +4,7 @@
 # inserted in that order, ROWS rows in batches, on a
 # PostgreSQL with a small buffer cache (so the index outgrows memory, as in
 # production), and measures time, WAL written, index size and leaf density.
-# Writes 16-id-generation/results.md. Needs only Docker. About 5 minutes.
+# Writes 16-id-generation/results.md. Needs only Docker and bash. About 5 minutes.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT=16-id-generation/results.md
@@ -15,9 +15,11 @@ C=ids-pg
 docker rm -f $C >/dev/null 2>&1 || true
 trap 'docker rm -f $C >/dev/null 2>&1 || true' EXIT
 docker run -d --name $C -e POSTGRES_USER=lab -e POSTGRES_PASSWORD=lab -e POSTGRES_DB=lab \
-  postgres:17-alpine postgres -c shared_buffers=128MB -c max_wal_size=4GB -c checkpoint_timeout=30min >/dev/null
+  postgres:17.11-alpine postgres -c shared_buffers=128MB -c max_wal_size=4GB -c checkpoint_timeout=30min >/dev/null
 for _ in $(seq 240); do docker exec $C pg_isready -h 127.0.0.1 -U lab >/dev/null 2>&1 && break; sleep 0.5; done
 psql() { docker exec -i $C psql -U lab -d lab -Atq -v ON_ERROR_STOP=1 "$@"; }
+# 5000000 -> 5,000,000, whatever the locale.
+commas() { echo "$1" | sed -e ':a' -e 's/\([0-9]\)\([0-9]\{3\}\)\($\|,\)/\1,\2\3/' -e 'ta'; }
 
 psql <<'SQL'
 CREATE EXTENSION pgstattuple;
@@ -40,7 +42,7 @@ psql -c "CREATE UNLOGGED TABLE src AS SELECT g AS n, gen_random_uuid() AS v4, uu
 {
   echo "# Primary keys: bigint vs UUIDv4 vs UUIDv7"
   echo
-  echo "PostgreSQL $VERSION in Docker, \`shared_buffers\` = 128 MB. $(printf "%'d" "$ROWS") rows inserted into each table in batches of $(printf "%'d" "$BATCH"), each row a key plus about 100 bytes. Measured $(date -u +%Y-%m-%d)."
+  echo "PostgreSQL $VERSION in Docker, \`shared_buffers\` = 128 MB. $(commas "$ROWS") rows inserted into each table in batches of $(commas "$BATCH"), each row a key plus about 100 bytes. Measured $(date -u +%Y-%m-%d)."
   echo
   echo "| Key | Insert time | Rows/s | WAL written | Primary key index | Leaf density | Table |"
   echo "|---|---:|---:|---:|---:|---:|---:|"
@@ -61,11 +63,11 @@ for kind in bigint uuidv4 uuidv7; do
     psql -c "INSERT INTO t SELECT $src, payload FROM src WHERE n > $n AND n <= $((n + BATCH)) ORDER BY n"
     n=$((n + BATCH))
   done
-  secs=$(python3 -c "print(f'{$(date +%s.%N) - $t0:.1f}')")
+  secs=$(awk -v a="$(date +%s.%N)" -v b="$t0" 'BEGIN { printf "%.1f", a - b }')
   read -r wal idx tbl dens < <(psql -F' ' -c "SELECT pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), '$lsn0')),
       pg_size_pretty(pg_relation_size('t_pkey')), pg_size_pretty(pg_relation_size('t')),
       round((pgstatindex('t_pkey')).avg_leaf_density::numeric, 1)" | sed 's/ \([kMG]B\)/\1/g')
-  rate=$(python3 -c "print(f'{$ROWS / $secs:,.0f}')")
+  rate=$(commas "$(awk -v r="$ROWS" -v s="$secs" 'BEGIN { printf "%d", r / s + 0.5 }')")
   echo "| $kind | ${secs} s | $rate | ${wal/B/ B} | ${idx/B/ B} | ${dens}% | ${tbl/B/ B} |" | sed 's/\([0-9]\)\([kMG]\) B/\1 \2B/g' >> "$OUT"
 done
 echo >> "$OUT"

@@ -5,8 +5,8 @@
 #   3. writes keep running, then the server AND its disk are destroyed;
 #      the database is rebuilt from the base backup + archived WAL, and
 #      the drill measures how much was lost (RPO) and how long it took (RTO).
-# Writes 15-backup-restore/results.md. Needs only Docker (and python3 for
-# arithmetic). About 5 minutes.
+# Writes 15-backup-restore/results.md. Needs only Docker and bash (awk does
+# the arithmetic). About 5 minutes.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT=15-backup-restore/results.md
@@ -15,7 +15,7 @@ P=database-tradeoffs-lab
 ROWS=${ROWS:-6000000}
 
 now() { date +%s.%N; }
-since() { python3 -c "print(f'{$(now) - $1:.1f}')"; }
+since() { awk -v a="$(now)" -v b="$1" 'BEGIN { printf "%.1f", a - b }'; }
 psqlp() { $DC exec -T pgdr psql -U lab -d lab -Atq "$@"; }
 # Over TCP: during first start the image runs a temporary socket-only server.
 ready() { for _ in $(seq 240); do docker exec "$1" pg_isready -h 127.0.0.1 -U "${2:-postgres}" >/dev/null 2>&1 && return 0; sleep 0.5; done; return 1; }
@@ -39,16 +39,16 @@ DBSIZE=$(psqlp -c "SELECT pg_size_pretty(pg_database_size('lab'))")
 VERSION=$(psqlp -c "SHOW server_version")
 
 echo "== 1. logical backup"
-t=$(now); $DC exec -T pgdr sh -c 'pg_dump -U lab -d lab -Fc -f /backup/lab.dump'; DUMP_S=$(since $t)
+t=$(now); $DC exec -T pgdr sh -c 'pg_dump -U lab -d lab -Fc -f /backup/lab.dump'; DUMP_S=$(since "$t")
 DUMP_SIZE=$($DC exec -T pgdr sh -c 'du -h /backup/lab.dump | cut -f1')
-docker run -d --name dr-restore -e POSTGRES_PASSWORD=x -v ${P}_pgdr-backup:/backup postgres:17-alpine >/dev/null
+docker run -d --name dr-restore -e POSTGRES_PASSWORD=x -v ${P}_pgdr-backup:/backup postgres:17.11-alpine >/dev/null
 ready dr-restore
-t=$(now); docker exec dr-restore pg_restore -U postgres -d postgres -j 4 --no-owner /backup/lab.dump; RESTORE_S=$(since $t)
+t=$(now); docker exec dr-restore pg_restore -U postgres -d postgres -j 4 --no-owner /backup/lab.dump; RESTORE_S=$(since "$t")
 RESTORED_ROWS=$(docker exec dr-restore psql -U postgres -Atc "SELECT count(*) FROM orders")
 docker rm -f dr-restore >/dev/null
 
 echo "== 2. physical base backup"
-t=$(now); $DC exec -T pgdr sh -c 'pg_basebackup -U lab -D /backup/base -X stream -c fast'; BASE_S=$(since $t)
+t=$(now); $DC exec -T pgdr sh -c 'pg_basebackup -U lab -D /backup/base -X stream -c fast'; BASE_S=$(since "$t")
 BASE_SIZE=$($DC exec -T pgdr sh -c 'du -sh /backup/base | cut -f1')
 
 echo "== 3. writes, then disaster"
@@ -65,7 +65,7 @@ docker volume rm ${P}_pgdr-data >/dev/null
 DISASTER=$(now)
 
 echo "== 4. point-in-time recovery from base backup + archived WAL"
-docker run -d --name dr-pitr -v ${P}_pgdr-backup:/backup -v ${P}_pgdr-archive:/archive --entrypoint sh postgres:17-alpine -c '
+docker run -d --name dr-pitr -v ${P}_pgdr-backup:/backup -v ${P}_pgdr-archive:/archive --entrypoint sh postgres:17.11-alpine -c '
   cp -a /backup/base /tmp/data && chown -R postgres:postgres /tmp/data && chmod 700 /tmp/data && touch /tmp/data/recovery.signal &&
   exec gosu postgres postgres -D /tmp/data -c "restore_command=cp /archive/%f %p" -c archive_mode=off' >/dev/null
 # Recovery replays every archived segment, then promotes to a normal primary.
@@ -73,12 +73,12 @@ for _ in $(seq 600); do
   st=$(docker exec dr-pitr psql -U lab -d lab -Atc "SELECT pg_is_in_recovery()" 2>/dev/null || true)
   [ "$st" = "f" ] && break; sleep 0.5
 done
-PITR_S=$(since $DISASTER)
+PITR_S=$(since "$DISASTER")
 REC=$(docker exec dr-pitr psql -U lab -d lab -Atc "SELECT id || ' ' || extract(epoch FROM at) FROM heartbeat ORDER BY id DESC LIMIT 1")
 REC_ID=${REC% *}; REC_AT=${REC#* }
 REC_ORDERS=$(docker exec dr-pitr psql -U lab -d lab -Atc "SELECT count(*) FROM orders")
 LOST_ROWS=$((LAST_ID - REC_ID))
-LOST_S=$(python3 -c "print(f'{$LAST_AT - $REC_AT:.1f}')")
+LOST_S=$(awk -v a="$LAST_AT" -v b="$REC_AT" 'BEGIN { printf "%.1f", a - b }')
 docker rm -f dr-pitr >/dev/null
 
 {

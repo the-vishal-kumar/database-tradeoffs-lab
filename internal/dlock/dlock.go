@@ -114,7 +114,7 @@ func Paused(ctx context.Context, e *Env, ttl time.Duration) ([]PauseResult, erro
 		return nil, err
 	}
 	if ok, err := acquire(ctx, e, "A", ttl); err != nil || !ok {
-		return nil, fmt.Errorf("A acquire: %v %v", ok, err)
+		return nil, fmt.Errorf("holder A acquire: %v %v", ok, err)
 	}
 	time.Sleep(pause) // A is paused; its lease runs out
 	bOK, err := acquire(ctx, e, "B", ttl)
@@ -135,7 +135,11 @@ func Paused(ctx context.Context, e *Env, ttl time.Duration) ([]PauseResult, erro
 	if err != nil {
 		return nil, err
 	}
-	out = append(out, PauseResult{"Redis lock (SET NX PX), safe release", bOK, "applied: overwrote B's newer write", v})
+	late := "applied"
+	if bOK {
+		late = "applied: overwrote B's newer write"
+	}
+	out = append(out, PauseResult{"Redis lock (SET NX PX), safe release", bOK, late, v})
 
 	// 2. The same lock, plus a fencing token checked by the database.
 	if err := reset(ctx, e); err != nil {
@@ -144,7 +148,7 @@ func Paused(ctx context.Context, e *Env, ttl time.Duration) ([]PauseResult, erro
 	fenced := func(owner string) (int64, error) {
 		ok, err := acquire(ctx, e, owner, ttl)
 		if err != nil || !ok {
-			return 0, fmt.Errorf("%s acquire: %v %v", owner, ok, err)
+			return 0, fmt.Errorf("holder %s acquire: %v %v", owner, ok, err)
 		}
 		return e.Redis.Incr(ctx, fenceKey).Result() // a number that only grows
 	}
@@ -169,7 +173,7 @@ func Paused(ctx context.Context, e *Env, ttl time.Duration) ([]PauseResult, erro
 	if err != nil {
 		return nil, err
 	}
-	late := fmt.Sprintf("rejected: token %d < %d", tokA, tokB)
+	late = fmt.Sprintf("rejected: token %d < %d", tokA, tokB)
 	if okA {
 		late = "applied"
 	}
@@ -190,7 +194,7 @@ func Paused(ctx context.Context, e *Env, ttl time.Duration) ([]PauseResult, erro
 	defer txA.Rollback(ctx)
 	var got bool
 	if err := txA.QueryRow(ctx, `SELECT pg_try_advisory_xact_lock(42)`).Scan(&got); err != nil || !got {
-		return nil, fmt.Errorf("A advisory: %v %v", got, err)
+		return nil, fmt.Errorf("holder A advisory: %v %v", got, err)
 	}
 	time.Sleep(pause) // A pauses; the lock has no TTL, it lasts as long as A's transaction
 	var bGot bool
@@ -242,7 +246,7 @@ func Paused(ctx context.Context, e *Env, ttl time.Duration) ([]PauseResult, erro
 	if err := pgx.BeginFunc(ctx, e.DB, func(tx pgx.Tx) error {
 		var ok bool
 		if err := tx.QueryRow(ctx, `SELECT pg_try_advisory_xact_lock(42)`).Scan(&ok); err != nil || !ok {
-			return fmt.Errorf("B advisory after A's connection died: %v %v", ok, err)
+			return fmt.Errorf("holder B advisory after A's connection died: %v %v", ok, err)
 		}
 		_, err := tx.Exec(ctx, `UPDATE dlock.resource SET value = $1 WHERE id = 1`, "written by B")
 		return err
@@ -276,11 +280,11 @@ func Unlock(ctx context.Context, e *Env, ttl time.Duration) ([]UnlockResult, err
 			return nil, err
 		}
 		if ok, err := acquire(ctx, e, "A", ttl); err != nil || !ok {
-			return nil, fmt.Errorf("A acquire: %v %v", ok, err)
+			return nil, fmt.Errorf("holder A acquire: %v %v", ok, err)
 		}
 		time.Sleep(ttl + 50*time.Millisecond)
 		if ok, err := acquire(ctx, e, "B", ttl*10); err != nil || !ok {
-			return nil, fmt.Errorf("B acquire: %v %v", ok, err)
+			return nil, fmt.Errorf("holder B acquire: %v %v", ok, err)
 		}
 		name := "DEL lock (release without checking the owner)"
 		if safe {

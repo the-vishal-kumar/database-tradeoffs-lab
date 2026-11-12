@@ -1,9 +1,17 @@
 # The databases the demos run against. Ports bind to localhost only.
+#
+# Images are pinned to the exact versions the results were measured on
+# (results.md files name them); Dependabot proposes bumps.
+#
+# Memory limits: every helper and non-PostgreSQL service has one. The
+# PostgreSQL services don't, on purpose: how much of a table fits in memory
+# is part of what demos 02, 15 and 16 measure, and a cgroup limit caps the
+# OS page cache as well as the server, which would change those numbers.
 name: database-tradeoffs-lab
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17.11-alpine
     command: ["postgres", "-c", "max_prepared_transactions=400"]   # demo 10: two-phase commit, with room for in-doubt ones
     environment:
       POSTGRES_USER: lab
@@ -20,9 +28,10 @@ services:
   # ttlMonitorSleepSecs=1 makes the TTL demo take seconds, not minutes; the
   # production default is 60.
   mongo:
-    image: mongo:8.2
+    image: mongo:8.2.12
     command: ["mongod", "--setParameter", "ttlMonitorSleepSecs=1"]
     ports: ["127.0.0.1:57017:27017"]
+    mem_limit: 1g
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 2s
@@ -31,9 +40,10 @@ services:
 
   # Redis for the cache demo: no persistence, so every run starts empty.
   redis:
-    image: redis:7.4-alpine
+    image: redis:7.4.12-alpine
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports: ["127.0.0.1:56379:6379"]
+    mem_limit: 256m
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
@@ -42,7 +52,8 @@ services:
 
   # MySQL for the long-transaction demo (InnoDB's undo log vs PostgreSQL's VACUUM).
   mysql:
-    image: mysql:8.4
+    image: mysql:8.4.13
+    mem_limit: 1g
     environment:
       MYSQL_ROOT_PASSWORD: lab   # local demo only
       MYSQL_DATABASE: lab
@@ -55,7 +66,7 @@ services:
 
   # A primary and a streaming replica for demo 08 (profile "replicas").
   pgprimary:
-    image: postgres:17-alpine
+    image: postgres:17.11-alpine
     profiles: ["replicas"]
     environment:
       POSTGRES_USER: lab
@@ -70,7 +81,7 @@ services:
       retries: 30
 
   pgreplica:
-    image: postgres:17-alpine
+    image: postgres:17.11-alpine
     profiles: ["replicas"]
     entrypoint: ["/replica-entrypoint.sh"]
     environment:
@@ -88,8 +99,9 @@ services:
   # Demo 13 (profile "acid"): MongoDB as a one-node replica set, because
   # multi-document transactions need a replica set, and DynamoDB Local.
   mongors:
-    image: mongo:8.2
+    image: mongo:8.2.12
     profiles: ["acid"]
+    mem_limit: 1g
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     ports: ["127.0.0.1:57018:27017"]
     healthcheck:
@@ -103,11 +115,18 @@ services:
     profiles: ["acid"]
     command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
     ports: ["127.0.0.1:58000:8000"]
+    mem_limit: 2g
+    # Any HTTP answer (an unsigned request gets a 400) means it's serving.
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://localhost:8000"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
 
   # Demo 15 (profile "dr"): a primary that archives every WAL segment, so it
   # can be restored to any point in time after it's lost.
   pgdr:
-    image: postgres:17-alpine
+    image: postgres:17.11-alpine
     profiles: ["dr"]
     command: ["postgres", "-c", "archive_mode=on", "-c", "archive_command=test ! -f /archive/%f && cp %p /archive/%f",
               "-c", "archive_timeout=10s", "-c", "wal_level=replica"]
@@ -122,24 +141,34 @@ services:
       timeout: 3s
       retries: 30
 
-  # Runs the MongoDB demo without Node installed: `make mongo`.
+  # Runs the MongoDB demo without Node installed: `make mongo`. Runs as
+  # your user (the Makefile exports HOST_UID/HOST_GID), so the node_modules
+  # it installs into the checkout aren't owned by root.
   node:
-    image: node:22
+    image: node:22.23.4-bookworm
     profiles: ["tools"]
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     working_dir: /src/03-mongodb-schemas
     volumes: [".:/src"]
+    mem_limit: 1g
     environment:
+      HOME: /tmp
+      npm_config_cache: /tmp/.npm
       MONGO_URL: mongodb://mongo:27017
     depends_on:
       mongo: { condition: service_healthy }
 
   # Runs the demos without Go installed: `make isolation`.
   go:
-    image: golang:1.27.3-bookworm
+    image: golang:1.27.4-bookworm
     profiles: ["tools"]
     working_dir: /src
+    mem_limit: 4g   # govulncheck (make lint) needs about 3 GB for this module graph
     volumes: [".:/src", "gocache:/root/.cache/go-build", "gomod:/go/pkg/mod"]
     environment:
+      # The container runs as root on a checkout you own, so git refuses to
+      # report VCS status; don't stamp binaries with it.
+      GOFLAGS: -buildvcs=false
       DATABASE_URL: postgres://lab:lab@postgres:5432/lab?sslmode=disable
       REDIS_URL: redis://redis:6379/0
       MYSQL_DSN: root:lab@tcp(mysql:3306)/lab
