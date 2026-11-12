@@ -45,6 +45,41 @@ type Load struct {
 
 // underLoad runs fn while 8 clients each loop: read a random row, update a
 // random row's balance. It returns fn's duration and the clients' latencies.
+// ddl runs the statements in one transaction with a short lock_timeout, and
+// retries when the lock isn't granted in time. Waiting for a lock puts every
+// later query on the table in the queue behind you, so the wait has to be short.
+func (e Env) ddl(ctx context.Context, stmts ...string) error {
+	for attempt := 1; ; attempt++ {
+		err := pgx.BeginFunc(ctx, e.DB, func(tx pgx.Tx) error {
+			if _, err := tx.Exec(ctx, `SET LOCAL lock_timeout = '100ms'`); err != nil {
+				return err
+			}
+			for _, q := range stmts {
+				if _, err := tx.Exec(ctx, q); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		var pe *pgconn.PgError
+		if err == nil || !errors.As(err, &pe) || pe.Code != "55P03" {
+			return err
+		}
+		if attempt == 50 {
+			return fmt.Errorf("no lock after %d tries of 100 ms: %w", attempt, err)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Duration(50+rand.IntN(150)) * time.Millisecond):
+		}
+	}
+}
+
+// backfillBatch is the rows per backfill transaction. Bigger batches finish
+// sooner but hold row locks longer, which is what clients feel.
+const backfillBatch = 2000
+
 func (e Env) underLoad(ctx context.Context, fn func(context.Context) error) (took time.Duration, l Load, err error) {
 	lctx, stop := context.WithCancel(ctx)
 	var mu sync.Mutex
@@ -127,55 +162,59 @@ func (e Env) ColumnType(ctx context.Context) ([]Step, error) {
 	}
 	took, l, err = e.underLoad(ctx, func(ctx context.Context) error {
 		// Expand: a new column, kept in sync by a trigger for new writes.
+		// Every statement that locks the table goes through ddl(): a short
+		// lock_timeout and a retry, so clients never queue behind a long wait.
 		for _, q := range []string{
 			`ALTER TABLE mig.accounts ADD COLUMN owner_id_new bigint`,
 			`CREATE FUNCTION mig.sync_owner() RETURNS trigger LANGUAGE plpgsql AS $$
 			   BEGIN NEW.owner_id_new := NEW.owner_id; RETURN NEW; END $$`,
 			`CREATE TRIGGER sync_owner BEFORE INSERT OR UPDATE ON mig.accounts FOR EACH ROW EXECUTE FUNCTION mig.sync_owner()`,
 		} {
-			if _, err := e.DB.Exec(ctx, q); err != nil {
+			if err := e.ddl(ctx, q); err != nil {
 				return err
 			}
 		}
-		// Backfill in small batches, each its own short transaction.
-		for lo := 1; lo <= e.Rows; lo += 10000 {
+		// Backfill in small batches, each its own short transaction: a client
+		// updating a row in the current batch waits for that batch to commit.
+		for lo := 1; lo <= e.Rows; lo += backfillBatch {
 			if _, err := e.DB.Exec(ctx, `UPDATE mig.accounts SET owner_id_new = owner_id
-				WHERE id BETWEEN $1 AND $2 AND owner_id_new IS NULL`, lo, lo+9999); err != nil {
+				WHERE id BETWEEN $1 AND $2 AND owner_id_new IS NULL`, lo, lo+backfillBatch-1); err != nil {
 				return err
 			}
+		}
+		// The backfill left a dead row version for every row, which wakes
+		// autovacuum. An ALTER that has to wait for autovacuum holds every
+		// client in the queue behind it until deadlock_timeout (1 s) cancels
+		// the vacuum. Vacuum now instead: it waits for any running autovacuum
+		// and blocks no reads or writes, and afterwards the ALTERs find no one
+		// in the way.
+		if _, err := e.DB.Exec(ctx, `VACUUM (ANALYZE) mig.accounts`); err != nil {
+			return err
 		}
 		// Prove NOT NULL without blocking writes: a NOT VALID check is
 		// instant, and VALIDATE scans while allowing reads and writes.
-		for _, q := range []string{
-			`ALTER TABLE mig.accounts ADD CONSTRAINT owner_new_not_null CHECK (owner_id_new IS NOT NULL) NOT VALID`,
-			`ALTER TABLE mig.accounts VALIDATE CONSTRAINT owner_new_not_null`,
-		} {
-			if _, err := e.DB.Exec(ctx, q); err != nil {
-				return err
-			}
+		// VALIDATE's lock (SHARE UPDATE EXCLUSIVE) doesn't block reads or
+		// writes, so it may wait as long as it needs to.
+		if err := e.ddl(ctx, `ALTER TABLE mig.accounts ADD CONSTRAINT owner_new_not_null CHECK (owner_id_new IS NOT NULL) NOT VALID`); err != nil {
+			return err
+		}
+		if _, err := e.DB.Exec(ctx, `ALTER TABLE mig.accounts VALIDATE CONSTRAINT owner_new_not_null`); err != nil {
+			return err
 		}
 		// Contract: swap names in one short transaction, drop the old column.
 		// SET NOT NULL uses the validated check (PostgreSQL 12+): no scan.
-		return pgx.BeginFunc(ctx, e.DB, func(tx pgx.Tx) error {
-			for _, q := range []string{
-				`SET LOCAL lock_timeout = '2s'`,
-				`DROP TRIGGER sync_owner ON mig.accounts`,
-				`ALTER TABLE mig.accounts DROP COLUMN owner_id`,
-				`ALTER TABLE mig.accounts RENAME COLUMN owner_id_new TO owner_id`,
-				`ALTER TABLE mig.accounts ALTER COLUMN owner_id SET NOT NULL`,
-				`ALTER TABLE mig.accounts DROP CONSTRAINT owner_new_not_null`,
-			} {
-				if _, err := tx.Exec(ctx, q); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
+		return e.ddl(ctx,
+			`DROP TRIGGER sync_owner ON mig.accounts`,
+			`ALTER TABLE mig.accounts DROP COLUMN owner_id`,
+			`ALTER TABLE mig.accounts RENAME COLUMN owner_id_new TO owner_id`,
+			`ALTER TABLE mig.accounts ALTER COLUMN owner_id SET NOT NULL`,
+			`ALTER TABLE mig.accounts DROP CONSTRAINT owner_new_not_null`,
+		)
 	})
 	if err != nil {
 		return nil, err
 	}
-	out = append(out, Step{"`owner_id` int → bigint", "expand (new column + trigger) / backfill in 10K-row batches / `CHECK … NOT VALID` + `VALIDATE` / contract", took, l,
+	out = append(out, Step{"`owner_id` int → bigint", "expand (new column + trigger) / backfill in 2K-row batches / `VACUUM` / `CHECK … NOT VALID` + `VALIDATE` / contract", took, l,
 		"the contract step only renames and drops; `SET NOT NULL` reuses the validated check instead of scanning under a lock"})
 	return out, nil
 }

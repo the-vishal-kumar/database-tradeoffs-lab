@@ -22,7 +22,7 @@ The workload is "buy one": read the stock, do some application work (2 ms of sle
 
 Retrying strategies back off with jitter (0.1 ms doubling to 6.4 ms) and give up after 100 attempts; give-ups are counted, not hidden.
 
-[`internal/locking/locking_test.go`](../internal/locking/locking_test.go) checks the outcomes: the naive version loses updates and oversells, every other strategy loses nothing and sells exactly the stock, the atomic `UPDATE` beats `FOR UPDATE` on a hot row by at least 2×, and optimistic retries outnumber purchases on a hot row.
+[`internal/locking/locking_test.go`](../internal/locking/locking_test.go) checks the outcomes: the naive version loses updates and oversells, every other strategy loses nothing and sells exactly the stock, on a hot row `FOR UPDATE` makes buyers do their application work one at a time while the atomic `UPDATE` lets them overlap (the reason it's faster, checked as overlap rather than throughput so a busy CI runner can't flip it), and optimistic retries outnumber purchases on a hot row.
 
 ## Notes
 

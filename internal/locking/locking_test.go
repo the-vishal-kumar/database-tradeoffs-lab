@@ -43,10 +43,15 @@ func TestOutcomes(t *testing.T) {
 				t.Errorf("%s lost updates: %+v", s.Name, r)
 			}
 		}
-		// Doing the work outside the lock and letting one UPDATE decide
-		// beats holding the row lock through the work.
-		if a, p := byName[atomic.Name].PerSec, byName[pessimistic.Name].PerSec; a < 2*p {
-			t.Errorf("atomic UPDATE (%.0f/s) should be well ahead of FOR UPDATE (%.0f/s) on one hot row", a, p)
+		// Why the atomic UPDATE beats FOR UPDATE on a hot row: FOR UPDATE
+		// holds the lock through the work, so buyers do it one at a time;
+		// the atomic UPDATE lets them all work at once. This is checked as
+		// overlap, not throughput, so a loaded CI runner can't flip it.
+		if p := byName[pessimistic.Name]; p.MaxConcurrentWork != 1 {
+			t.Errorf("FOR UPDATE should serialise the work on one row: %d buyers worked at once", p.MaxConcurrentWork)
+		}
+		if a := byName[atomic.Name]; a.MaxConcurrentWork < 2 {
+			t.Errorf("the atomic UPDATE should let buyers work concurrently: max %d at once", a.MaxConcurrentWork)
 		}
 		if r := byName[Strategies[2].Name]; r.Retries < int64(r.Ops) {
 			t.Errorf("optimistic retries should exceed purchases on one hot row: %+v", r)

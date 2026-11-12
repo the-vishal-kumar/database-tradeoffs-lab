@@ -28,9 +28,11 @@ import (
 // Strategy is one way to do "read, work, write".
 type Strategy struct {
 	Name string
-	// buy decrements the stock of item id by one if it's above zero.
-	// It returns whether it sold, and how many retries it needed.
-	buy func(ctx context.Context, db *pgxpool.Pool, id int, work time.Duration) (sold bool, retries int, err error)
+	// buy decrements the stock of item id by one if it's above zero,
+	// calling work where the application would do its work between the
+	// read and the write. It returns whether it sold, and how many retries
+	// it needed.
+	buy func(ctx context.Context, db *pgxpool.Pool, id int, work func()) (sold bool, retries int, err error)
 }
 
 const maxRetries = 100
@@ -66,26 +68,26 @@ func backoff(attempt int) {
 
 // Strategies in report order.
 var Strategies = []Strategy{
-	{"naive read-modify-write (no lock, no check)", func(ctx context.Context, db *pgxpool.Pool, id int, work time.Duration) (bool, int, error) {
+	{"naive read-modify-write (no lock, no check)", func(ctx context.Context, db *pgxpool.Pool, id int, work func()) (bool, int, error) {
 		var stock int
 		if err := db.QueryRow(ctx, `SELECT stock FROM locking.items WHERE id = $1`, id).Scan(&stock); err != nil {
 			return false, 0, err
 		}
-		time.Sleep(work)
+		work()
 		if stock <= 0 {
 			return false, 0, nil
 		}
 		_, err := db.Exec(ctx, `UPDATE locking.items SET stock = $2 WHERE id = $1`, id, stock-1)
 		return err == nil, 0, err
 	}},
-	{"pessimistic: SELECT ... FOR UPDATE, work, UPDATE", func(ctx context.Context, db *pgxpool.Pool, id int, work time.Duration) (bool, int, error) {
+	{"pessimistic: SELECT ... FOR UPDATE, work, UPDATE", func(ctx context.Context, db *pgxpool.Pool, id int, work func()) (bool, int, error) {
 		sold := false
 		err := pgx.BeginFunc(ctx, db, func(tx pgx.Tx) error {
 			var stock int
 			if err := tx.QueryRow(ctx, `SELECT stock FROM locking.items WHERE id = $1 FOR UPDATE`, id).Scan(&stock); err != nil {
 				return err
 			}
-			time.Sleep(work) // the row stays locked during the work
+			work() // the row stays locked during the work
 			if stock <= 0 {
 				return nil
 			}
@@ -95,13 +97,13 @@ var Strategies = []Strategy{
 		})
 		return sold, 0, err
 	}},
-	{"optimistic: read version, work, UPDATE ... WHERE version = read, retry", func(ctx context.Context, db *pgxpool.Pool, id int, work time.Duration) (bool, int, error) {
+	{"optimistic: read version, work, UPDATE ... WHERE version = read, retry", func(ctx context.Context, db *pgxpool.Pool, id int, work func()) (bool, int, error) {
 		for attempt := 0; attempt < maxRetries; attempt++ {
 			var stock, version int
 			if err := db.QueryRow(ctx, `SELECT stock, version FROM locking.items WHERE id = $1`, id).Scan(&stock, &version); err != nil {
 				return false, attempt, err
 			}
-			time.Sleep(work) // no lock held
+			work() // no lock held
 			if stock <= 0 {
 				return false, attempt, nil
 			}
@@ -117,12 +119,12 @@ var Strategies = []Strategy{
 		}
 		return false, maxRetries, ErrGaveUp
 	}},
-	{"atomic: work, then UPDATE ... SET stock = stock - 1 WHERE stock > 0", func(ctx context.Context, db *pgxpool.Pool, id int, work time.Duration) (bool, int, error) {
-		time.Sleep(work) // whatever the app needs to do first, outside any lock
+	{"atomic: work, then UPDATE ... SET stock = stock - 1 WHERE stock > 0", func(ctx context.Context, db *pgxpool.Pool, id int, work func()) (bool, int, error) {
+		work() // whatever the app needs to do first, outside any lock
 		tag, err := db.Exec(ctx, `UPDATE locking.items SET stock = stock - 1 WHERE id = $1 AND stock > 0`, id)
 		return err == nil && tag.RowsAffected() == 1, 0, err
 	}},
-	{"SERIALIZABLE: read, work, write, retry on 40001", func(ctx context.Context, db *pgxpool.Pool, id int, work time.Duration) (bool, int, error) {
+	{"SERIALIZABLE: read, work, write, retry on 40001", func(ctx context.Context, db *pgxpool.Pool, id int, work func()) (bool, int, error) {
 		for attempt := 0; attempt < maxRetries; attempt++ {
 			sold := false
 			err := pgx.BeginTxFunc(ctx, db, pgx.TxOptions{IsoLevel: pgx.Serializable}, func(tx pgx.Tx) error {
@@ -130,7 +132,7 @@ var Strategies = []Strategy{
 				if err := tx.QueryRow(ctx, `SELECT stock FROM locking.items WHERE id = $1`, id).Scan(&stock); err != nil {
 					return err
 				}
-				time.Sleep(work)
+				work()
 				if stock <= 0 {
 					return nil
 				}
@@ -161,6 +163,26 @@ type Result struct {
 	GaveUp               int64   // purchases abandoned after maxRetries
 	PerSec               float64 // completed purchases per second
 	P50, P99             time.Duration
+	// MaxConcurrentWork is the most buyers that were doing their
+	// application work at the same moment. A strategy that holds the row
+	// lock through the work keeps it at 1 on a hot row, however fast the
+	// machine is; that serialisation is what costs it throughput.
+	MaxConcurrentWork int64
+}
+
+// workTracker sleeps for the application work and records how many
+// buyers were inside it at once.
+type workTracker struct {
+	d         time.Duration
+	now, peak atomic.Int64
+}
+
+func (w *workTracker) do() {
+	n := w.now.Add(1)
+	for p := w.peak.Load(); n > p && !w.peak.CompareAndSwap(p, n); p = w.peak.Load() {
+	}
+	time.Sleep(w.d)
+	w.now.Add(-1)
 }
 
 // setup creates `items` rows, each with `stock` units.
@@ -191,6 +213,7 @@ func Run(ctx context.Context, db *pgxpool.Pool, s Strategy, workers, perWorker, 
 	}
 	r := Result{Strategy: s.Name, Contention: contention, Ops: workers * perWorker}
 	var sold, retries, gaveUp atomic.Int64
+	wt := &workTracker{d: work}
 	lat := make([]time.Duration, 0, r.Ops)
 	var mu sync.Mutex
 	var firstErr atomic.Value
@@ -207,7 +230,7 @@ func Run(ctx context.Context, db *pgxpool.Pool, s Strategy, workers, perWorker, 
 					id = 1 + rand.IntN(items)
 				}
 				t := time.Now()
-				ok, n, err := s.buy(ctx, db, id, work)
+				ok, n, err := s.buy(ctx, db, id, wt.do)
 				mine = append(mine, time.Since(t))
 				retries.Add(int64(n))
 				if errors.Is(err, ErrGaveUp) {
@@ -240,6 +263,7 @@ func Run(ctx context.Context, db *pgxpool.Pool, s Strategy, workers, perWorker, 
 	r.Decremented = int64(startStock*items) - left
 	r.LostUpdates = r.Sold - r.Decremented
 	r.PerSec = float64(r.Sold) / elapsed.Seconds()
+	r.MaxConcurrentWork = wt.peak.Load()
 	slices.Sort(lat)
 	r.P50, r.P99 = lat[len(lat)/2], lat[len(lat)*99/100]
 	return r, nil
@@ -259,6 +283,7 @@ func Oversell(ctx context.Context, db *pgxpool.Pool, s Strategy, stock, buyers i
 		return OversellResult{}, err
 	}
 	var sold, gaveUp atomic.Int64
+	wt := &workTracker{d: work}
 	var firstErr atomic.Value
 	var wg sync.WaitGroup
 	gun := make(chan struct{})
@@ -267,7 +292,7 @@ func Oversell(ctx context.Context, db *pgxpool.Pool, s Strategy, stock, buyers i
 		go func() {
 			defer wg.Done()
 			<-gun
-			ok, _, err := s.buy(ctx, db, 1, work)
+			ok, _, err := s.buy(ctx, db, 1, wt.do)
 			if errors.Is(err, ErrGaveUp) {
 				gaveUp.Add(1)
 			} else if err != nil {

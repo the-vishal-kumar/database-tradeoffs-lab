@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -32,8 +33,13 @@ func TestACID(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer mc.Disconnect(ctx)
-	if err := mc.Ping(ctx, nil); err != nil {
-		t.Skipf("MongoDB replica set not reachable: %v", err)
+	// A short timeout: without one, `make test` (which sets MONGO_RS_URL but
+	// doesn't start the replica set) waited 30 s for server selection
+	// before skipping.
+	pctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	if err := mc.Ping(pctx, nil); err != nil {
+		t.Skipf("MongoDB replica set not reachable (start it with `make acid-test`): %v", err)
 	}
 	dy := dynamodb.New(dynamodb.Options{Region: "us-east-1", BaseEndpoint: aws.String(dURL),
 		Credentials: credentials.NewStaticCredentialsProvider("local", "local", "")})
