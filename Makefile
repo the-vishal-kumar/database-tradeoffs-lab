@@ -31,7 +31,7 @@ longtx: up     ## 07: one long transaction vs VACUUM (PostgreSQL) and purge (MyS
 	$(GO) go run ./cmd/longtx
 replicas:      ## 08: a streaming replica: lag, stale reads, synchronous_commit, a missing sync replica
 	docker compose --profile replicas up -d --wait pgprimary pgreplica
-	$(GO) $(REPLICA_ENV) go run ./cmd/replicas
+	docker compose run --rm $(REPLICA_ENV) go go run ./cmd/replicas
 partition: up  ## 09: one big table vs monthly partitions (6M rows)
 	$(GO) go run ./cmd/partition
 twosys: up     ## 10: orders and payments in two databases: dual write vs 2PC vs saga vs outbox
@@ -63,7 +63,7 @@ pgdyn-test:    ## the PostgreSQL-vs-DynamoDB test (starts DynamoDB Local)
 	$(GO) go test -count=1 ./internal/pgdyn/
 replicas-test: ## the replica test (starts the replicas profile)
 	docker compose --profile replicas up -d --wait pgprimary pgreplica
-	$(GO) $(REPLICA_ENV) go test -count=1 ./internal/replicas/
+	docker compose run --rm $(REPLICA_ENV) go go test -count=1 ./internal/replicas/
 test-all: test acid-test pgdyn-test replicas-test ## every test, including the ones that need extra containers
 lint:          ## gofmt, go vet, staticcheck, govulncheck, shellcheck, compose config
 	docker compose config -q

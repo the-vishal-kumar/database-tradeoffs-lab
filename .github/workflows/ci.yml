@@ -73,6 +73,13 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: go.mod
+      # Service containers can't take command-line flags, so set what
+      # compose.yaml passes with -c (demo 10 needs prepared transactions).
+      - name: Enable prepared transactions in PostgreSQL
+        run: |
+          docker exec ${{ job.services.postgres.id }} psql -U lab -d lab -c "ALTER SYSTEM SET max_prepared_transactions = 400"
+          docker restart ${{ job.services.postgres.id }}
+          until docker exec ${{ job.services.postgres.id }} pg_isready -U lab -d lab; do sleep 1; done
       - name: Tests, with the race detector
         run: go test -race -count=1 -p 1 ./...   # demos share one database
       - name: Storage-engine test (without -race; Pebble is very slow under it)
